@@ -1,6 +1,6 @@
 /* Flybird GIV — offline app-shell cache.
    Bump CACHE (e.g. v2, v3) whenever you change index.html so phones pick up the new version. */
-const CACHE = "flybird-giv-v1";
+const CACHE = "flybird-giv-v2";
 const ASSETS = ["./", "./index.html", "./manifest.json"];
 
 self.addEventListener("install", (e) => {
