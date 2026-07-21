@@ -24,6 +24,14 @@ export default async function handler(req, res) {
       )
       .join("");
 
+    // Remarks block only appears if the engineer wrote something.
+    const remarksHtml = r.remarks
+      ? `<div style="margin:14px 0;padding:12px 14px;border-left:4px solid #C9A84C;background:#FAF6EC">
+           <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">Remarks & Notes</div>
+           <div style="white-space:pre-wrap;font-size:13px">${escape(r.remarks)}</div>
+         </div>`
+      : "";
+
     const html = `
       <div style="font-family:Arial,sans-serif;color:#0d1526">
         <h2 style="color:#071A5A">Gulfstream GIV Pre-flight Inspection</h2>
@@ -34,6 +42,7 @@ export default async function handler(req, res) {
               <th style="background:#071A5A;color:#fff">ENG</th><th style="background:#071A5A;color:#fff">TECH</th></tr>
           ${rows}
         </table>
+        ${remarksHtml}
         <p style="margin-top:14px">Signature and stamp attached.</p>
       </div>`;
 
