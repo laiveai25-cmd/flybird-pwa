@@ -49,9 +49,14 @@
     margin:0 0 10px;font-weight:800}
   @media (prefers-color-scheme: dark){h2.sec{color:var(--gold)}}
   label.fld{display:block;font-size:12px;color:var(--muted);margin:0 0 4px;font-weight:600}
-  input[type=text],input[type=date]{width:100%;font-size:16px;font-family:var(--mono);
+  input[type=text],input[type=date],select,textarea{width:100%;font-size:16px;font-family:var(--mono);
     padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);
-    color:var(--ink)}
+    color:var(--ink);appearance:none;-webkit-appearance:none}
+  select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
+    linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+    background-size:5px 5px, 5px 5px; background-repeat:no-repeat; padding-right:34px}
+  textarea{font-family:var(--ui);font-size:15px;min-height:88px;resize:vertical;line-height:1.5}
   .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   .grid3{display:grid;grid-template-columns:1fr;gap:10px}
 
@@ -147,13 +152,29 @@
     <div class="card">
       <h2 class="sec">Aircraft & Flight</h2>
       <div class="grid2">
-        <div><label class="fld">Aircraft Registration</label><input id="reg" type="text" placeholder="5N-XXX" autocomplete="off"></div>
+        <div><label class="fld">Aircraft Registration</label>
+          <select id="reg">
+            <option value="">Select aircraft…</option>
+            <option>5N-ISB</option><option>5N-IKO</option><option>5N-JAZ</option>
+            <option>5N-ALG</option><option>5N-JAK</option><option>5N-BNM</option>
+            <option>5N-IZA</option><option>5N-KAL</option><option>5N-DSY</option>
+            <option>5N-JLA</option><option>5N-SYQ</option>
+            <option>P4-ADTW</option><option>P4-ORJ</option><option>P4-ZZK</option>
+            <option>P4-AAA</option>
+          </select>
+        </div>
         <div><label class="fld">TSN / CSN</label><input id="tsn" type="text" placeholder="hrs / cycles" autocomplete="off"></div>
       </div>
       <div style="margin-top:10px"><label class="fld">Date</label><input id="date" type="date"></div>
     </div>
 
     <div id="sections"></div>
+
+    <div class="card">
+      <h2 class="sec">Remarks & Notes</h2>
+      <label class="fld">Anything worth flagging — deferred items, observations, points for the incoming crew</label>
+      <textarea id="remarks" placeholder="Optional. Leave blank if nothing to note."></textarea>
+    </div>
 
     <div class="card">
       <h2 class="sec">Sign-off</h2>
@@ -201,7 +222,7 @@
 /* ============================================================
    CONFIG — the only two lines you change to go to production
    ============================================================ */
-const DEMO_MODE = false;          // true = simulate sending (for the preview/prototype)
+const DEMO_MODE = true;          // true = simulate sending (for the preview/prototype)
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 /* ============================================================ */
@@ -396,6 +417,7 @@ $("#submitBtn").addEventListener("click",async()=>{
     id:uuid(), status:"pending", createdAt:new Date().toISOString(),
     registration:reg, tsn:$("#tsn").value.trim(), date:$("#date").value,
     engineer:eng,
+    remarks:$("#remarks").value.trim(),
     signature:signed?$("#sig").toDataURL("image/png"):null,
     stamp:stampData, items
   };
@@ -474,7 +496,8 @@ $("#tabOut").addEventListener("click",()=>goTo("out"));
 
 /* ---------------- Reset ---------------- */
 function resetForm(){
-  ["reg","tsn","eng"].forEach(id=>$("#"+id).value="");
+  ["tsn","eng","remarks"].forEach(id=>$("#"+id).value="");
+  $("#reg").selectedIndex=0;
   $("#date").valueAsDate=new Date();
   Object.keys(marks).forEach(k=>delete marks[k]);
   document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
