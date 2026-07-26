@@ -1,7 +1,7 @@
 {
-  "name": "Flybird GIV Pre-flight Inspection",
-  "short_name": "Flybird GIV",
-  "description": "Offline-capable Gulfstream GIV pre-flight / transit / post-flight inspection checklist.",
+  "name": "Gulfstream Pre-flight Checklist",
+  "short_name": "Pre-flight",
+  "description": "Offline-capable Gulfstream pre-flight / transit / post-flight inspection checklist.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
