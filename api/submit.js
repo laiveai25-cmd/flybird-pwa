@@ -1,30 +1,109 @@
-// Vercel serverless function: receives one inspection and emails it.
-// Uses Resend (https://resend.com) — free tier is plenty for a temporary tool.
+// Vercel serverless function — handles TWO actions on one endpoint:
+//   1. { action: "auth", code }  -> validate an engineer passcode, return a device token
+//   2. a submission (default)     -> verify token, then email the inspection via Resend
 //
-// Set two Environment Variables in Vercel (Settings -> Environment Variables):
-//   RESEND_API_KEY  = your Resend API key
-//   RECIPIENT_EMAIL = where completed inspections should land (e.g. maintenance@flybird...)
+// ENVIRONMENT VARIABLES to set in Vercel (Settings -> Environment Variables):
+//   RESEND_API_KEY   = your Resend API key
+//   RECIPIENT_EMAIL  = where completed inspections are emailed
+//   APP_TOKEN        = a shared secret; must EXACTLY match APP_TOKEN in index.html
+//   TOKEN_SECRET     = any long random string (used to sign engineer tokens; never shared)
+//   ENGINEERS        = approved engineers as  Name|passcode  pairs, separated by ; e.g.
+//                      John Doe|4471;Jane Smith|8823;Captain A|9910
+//   ALLOWED_ORIGIN   = (optional) your custom domain, e.g. https://checklist.flybird.com
 //
-// Sender note: Resend's free sandbox sender is onboarding@resend.dev. To send from a
-// Flybird address you verify a domain in Resend first (optional for a temporary tool).
+// To REVOKE an engineer: delete their entry from ENGINEERS and redeploy. Their next
+// sync fails and they're locked out — even though their phone still holds a token.
+
+import crypto from "node:crypto";
+
+/* ---- best-effort in-memory rate limit (per warm instance; raises the bar, not bulletproof) ---- */
+const hits = new Map();
+function rateLimited(ip) {
+  const now = Date.now(), WINDOW = 60000, MAX = 20;
+  const arr = (hits.get(ip) || []).filter((t) => now - t < WINDOW);
+  arr.push(now);
+  hits.set(ip, arr);
+  return arr.length > MAX;
+}
+
+/* ---- approved-engineer list from the ENGINEERS env var ---- */
+function engineers() {
+  return (process.env.ENGINEERS || "")
+    .split(";").map((s) => s.trim()).filter(Boolean)
+    .map((pair) => {
+      const i = pair.indexOf("|");
+      return { name: pair.slice(0, i).trim(), code: pair.slice(i + 1).trim() };
+    })
+    .filter((e) => e.name && e.code);
+}
+
+/* ---- stateless, offline-safe engineer tokens (HMAC-signed name) ---- */
+function signToken(name) {
+  const p = Buffer.from(name).toString("base64url");
+  const sig = crypto.createHmac("sha256", process.env.TOKEN_SECRET || "").update(name).digest("hex");
+  return p + "." + sig;
+}
+function verifyToken(token) {
+  if (!token || typeof token !== "string" || !token.includes(".")) return null;
+  const [p, sig] = token.split(".");
+  let name;
+  try { name = Buffer.from(p, "base64url").toString("utf8"); } catch { return null; }
+  const expect = crypto.createHmac("sha256", process.env.TOKEN_SECRET || "").update(name).digest("hex");
+  try {
+    const a = Buffer.from(sig || "", "hex"), b = Buffer.from(expect, "hex");
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  } catch { return null; }
+  return name;
+}
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
-  try {
-    const r = req.body || {};
+  // 1) Shared app-token gate (fail closed if not configured).
+  if (!process.env.APP_TOKEN || (req.headers["x-app-token"] || "") !== process.env.APP_TOKEN) {
+    return res.status(401).json({ error: "unauthorised (app token)" });
+  }
 
-    // Build a simple, printable HTML summary of the checklist.
+  // 2) Soft origin check — block browser-based cross-site abuse.
+  const origin = req.headers.origin || "";
+  const allowed = process.env.ALLOWED_ORIGIN || "";
+  if (origin && !origin.endsWith(".vercel.app") && (!allowed || origin !== allowed)) {
+    return res.status(403).json({ error: "bad origin" });
+  }
+
+  // 3) Rate limit by IP.
+  const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || "unknown";
+  if (rateLimited(ip)) return res.status(429).json({ error: "too many requests, slow down" });
+
+  const body = req.body || {};
+
+  // ---- ACTION: authenticate an engineer passcode ----
+  if (body.action === "auth") {
+    const match = engineers().find((e) => e.code === String(body.code || "").trim());
+    if (!match) return res.status(401).json({ error: "Passcode not recognised." });
+    return res.status(200).json({ ok: true, name: match.name, token: signToken(match.name) });
+  }
+
+  // ---- ACTION: submit an inspection ----
+  try {
+    const r = body;
+
+    // Verify the engineer token, then confirm they're still approved (revocation).
+    const name = verifyToken(r.authToken);
+    if (!name) return res.status(401).json({ error: "invalid or missing engineer token" });
+    if (!engineers().some((e) => e.name === name)) {
+      return res.status(403).json({ error: "engineer no longer approved" });
+    }
+
     const rows = (r.items || [])
       .map(
         (i) =>
           `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}</td>
-           <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "✓" : ""}</td>
-           <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "✓" : ""}</td></tr>`
+           <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "\u2713" : ""}</td>
+           <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "\u2713" : ""}</td></tr>`
       )
       .join("");
 
-    // Remarks block only appears if the engineer wrote something.
     const remarksHtml = r.remarks
       ? `<div style="margin:14px 0;padding:12px 14px;border-left:4px solid #C9A84C;background:#FAF6EC">
            <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">Remarks & Notes</div>
@@ -34,24 +113,28 @@ export default async function handler(req, res) {
 
     const html = `
       <div style="font-family:Arial,sans-serif;color:#0d1526">
-        <h2 style="color:#071A5A">Gulfstream GIV Pre-flight Inspection</h2>
+        <h2 style="color:#071A5A">Gulfstream Pre-flight Checklist</h2>
         <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN/CSN:</b> ${escape(r.tsn)} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
-        <p><b>Engineer:</b> ${escape(r.engineer)} &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
+        <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
         <table style="border-collapse:collapse;width:100%;font-size:13px">
           <tr><th style="text-align:left;padding:4px 8px;background:#071A5A;color:#fff">Item</th>
               <th style="background:#071A5A;color:#fff">ENG</th><th style="background:#071A5A;color:#fff">TECH</th></tr>
           ${rows}
         </table>
         ${remarksHtml}
-        <p style="margin-top:14px">Signature and stamp attached.</p>
+        <p style="margin-top:14px;color:#5a6577;font-size:12px">${attachSummary(r)}</p>
       </div>`;
 
-    // Attach signature + stamp (they arrive as data URLs; strip the prefix to base64).
     const attachments = [];
     if (r.signature) attachments.push({ filename: "signature.png", content: r.signature.split(",")[1] });
-    if (r.stamp) {
-      const ext = (r.stamp.split(";")[0].split("/")[1] || "png");
-      attachments.push({ filename: "stamp." + ext, content: r.stamp.split(",")[1] });
+    (r.images || []).forEach((img, idx) => {
+      const ext = (img.split(";")[0].split("/")[1] || "jpg");
+      attachments.push({ filename: `photo-${idx + 1}.${ext}`, content: img.split(",")[1] });
+    });
+    if (r.voice) {
+      const raw = (r.voiceMime || r.voice.split(";")[0].split(":")[1] || "audio/webm");
+      const ext = raw.includes("mp4") || raw.includes("m4a") ? "m4a" : raw.includes("ogg") ? "ogg" : "webm";
+      attachments.push({ filename: `voice-note.${ext}`, content: r.voice.split(",")[1] });
     }
 
     const resp = await fetch("https://api.resend.com/emails", {
@@ -63,7 +146,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: "Flybird Inspections <onboarding@resend.dev>",
         to: [process.env.RECIPIENT_EMAIL],
-        subject: `GIV Pre-flight — ${r.registration || "aircraft"} — ${r.date || ""}`,
+        subject: `Pre-flight Checklist — ${r.registration || "aircraft"} — ${r.date || ""}`,
         html,
         attachments,
       }),
@@ -73,8 +156,7 @@ export default async function handler(req, res) {
       const detail = await resp.text();
       return res.status(502).json({ error: "email failed", detail });
     }
-    // 200 tells the phone the submission is safely delivered, so it marks it "Synced".
-    return res.status(200).json({ ok: true, id: r.id });
+    return res.status(200).json({ ok: true, id: r.id, engineer: name });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }
@@ -82,4 +164,12 @@ export default async function handler(req, res) {
 
 function escape(s) {
   return String(s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+function attachSummary(r) {
+  const parts = [];
+  if (r.signature) parts.push("signature");
+  const n = (r.images || []).length;
+  if (n) parts.push(`${n} photo${n > 1 ? "s" : ""}`);
+  if (r.voice) parts.push("voice note");
+  return parts.length ? `Attached: ${parts.join(", ")}.` : "No attachments.";
 }
