@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#071A5A" />
 <link rel="manifest" href="manifest.json" />
-<title>Flybird GIV Pre-flight Inspection</title>
+<title>Gulfstream Pre-flight Checklist</title>
 <style>
   :root{
     --navy:#071A5A; --navy-2:#0d2673; --mint:#8CC8BE; --cream:#F7F2EC;
@@ -93,6 +93,28 @@
   .link{background:none;border:none;color:var(--gold-deep);font-weight:600;font-size:12px;cursor:pointer;padding:0}
   @media (prefers-color-scheme: dark){.link{color:var(--gold)}}
 
+  /* Voice note */
+  .voicebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .recbtn{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:700;
+    padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--chip);
+    color:var(--ink);cursor:pointer}
+  .recbtn.live{background:var(--offline);border-color:var(--offline);color:#fff}
+  .rectime{font-family:var(--mono);font-size:13px;color:var(--muted)}
+  audio{width:100%;margin-top:8px;height:38px}
+
+  /* Multi-image grid */
+  .thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:10px}
+  .thumb{position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--line);aspect-ratio:1}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .rm{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;
+    background:rgba(0,0,0,.65);color:#fff;border:none;font-size:14px;line-height:1;cursor:pointer;
+    display:grid;place-items:center}
+  .imgcount{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
+
+  /* Download button on records */
+  .dlbtn{margin-top:10px;font-size:12px;font-weight:700;padding:8px 12px;border-radius:9px;
+    border:1px solid var(--line);background:var(--chip);color:var(--ink);cursor:pointer}
+
   /* Submit bar */
   .bar{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--card);
     border-top:1px solid var(--line);padding:12px 14px calc(env(safe-area-inset-bottom) + 12px);
@@ -131,8 +153,8 @@
   <div class="hrow">
     <div class="logo">F</div>
     <div>
-      <div class="htitle">GIV Pre-flight Inspection</div>
-      <div class="hsub">Flybird · Gulfstream GIV</div>
+      <div class="htitle">Gulfstream Pre-flight Checklist</div>
+      <div class="hsub">Flybird · Gulfstream</div>
     </div>
     <div class="conn">
       <span id="qpill" class="pill queue" style="display:none">0 queued</span>
@@ -171,7 +193,15 @@
     <div class="card">
       <h2 class="sec">Remarks & Notes</h2>
       <label class="fld">Anything worth flagging — deferred items, observations, points for the incoming crew</label>
-      <textarea id="remarks" placeholder="Optional. Leave blank if nothing to note."></textarea>
+      <textarea id="remarks" placeholder="Optional. Type here, or record a voice note below."></textarea>
+
+      <label class="fld" style="margin-top:12px">Voice note (optional, max 60s)</label>
+      <div class="voicebar">
+        <button type="button" class="recbtn" id="recBtn">🎤 Record voice note</button>
+        <span class="rectime" id="recTime"></span>
+        <button class="link" id="recClear" style="display:none">Remove</button>
+      </div>
+      <audio id="voicePlay" controls style="display:none"></audio>
     </div>
 
     <div class="card">
@@ -186,10 +216,11 @@
       <button class="link" id="clearSig" style="margin-top:6px">Clear signature</button>
 
       <div class="stamp">
-        <label class="fld" style="margin-top:8px">Stamp (photo)</label>
-        <label class="stampbtn" for="stampInput">📷 Capture / upload stamp</label>
-        <input id="stampInput" type="file" accept="image/*" capture="environment" style="display:none">
-        <img id="stampPrev" alt="stamp preview">
+        <label class="fld" style="margin-top:8px">Photos — stamp, defects, condition (up to 6)</label>
+        <label class="stampbtn" for="imgInput">📷 Add photo(s)</label>
+        <input id="imgInput" type="file" accept="image/*" capture="environment" multiple style="display:none">
+        <div class="thumbs" id="thumbs"></div>
+        <div class="imgcount" id="imgCount"></div>
       </div>
 
       <div class="togglerow">
@@ -321,8 +352,15 @@ const Store = (() => {
 
 /* ---------------- App state ---------------- */
 const marks = {};   // key `${s}-${i}-eng|tech` -> bool
-let stampData = null;
+let images = [];    // array of compressed JPEG data URLs
+let voiceData = null, voiceMime = null;
 let forceOffline = false;
+
+/* Limits — tuned so total payload stays well under Vercel's request-body ceiling */
+const MAX_IMAGES = 6;
+const IMG_MAX_PX = 1280;    // longest side after compression
+const IMG_QUALITY = 0.6;    // JPEG quality
+const VOICE_MAX_SEC = 60;   // voice note hard cap
 
 const $=s=>document.querySelector(s);
 function uuid(){return (crypto.randomUUID&&crypto.randomUUID())||("id-"+Date.now()+"-"+Math.random().toString(16).slice(2));}
@@ -381,12 +419,83 @@ $("#clearSig").addEventListener("click",()=>{
   const c=$("#sig"); sigCtx.clearRect(0,0,c.width,c.height); signed=false; $("#sighint").style.display="grid";
 });
 
-/* ---------------- Stamp capture ---------------- */
-$("#stampInput").addEventListener("change",e=>{
-  const f=e.target.files[0]; if(!f)return;
-  const rd=new FileReader();
-  rd.onload=()=>{stampData=rd.result; const p=$("#stampPrev"); p.src=stampData; p.style.display="block";};
-  rd.readAsDataURL(f);
+/* ---------------- Multi-image capture (with compression) ---------------- */
+function compressImage(file){
+  return new Promise((resolve,reject)=>{
+    const rd=new FileReader();
+    rd.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        let{width:w,height:h}=img;
+        const scale=Math.min(1, IMG_MAX_PX/Math.max(w,h));
+        w=Math.round(w*scale); h=Math.round(h*scale);
+        const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+        cv.getContext("2d").drawImage(img,0,0,w,h);
+        resolve(cv.toDataURL("image/jpeg", IMG_QUALITY));
+      };
+      img.onerror=reject; img.src=rd.result;
+    };
+    rd.onerror=reject; rd.readAsDataURL(file);
+  });
+}
+$("#imgInput").addEventListener("change",async e=>{
+  const files=[...e.target.files];
+  for(const f of files){
+    if(images.length>=MAX_IMAGES){ alert(`Maximum ${MAX_IMAGES} photos.`); break; }
+    try{ images.push(await compressImage(f)); }catch(_){}
+  }
+  e.target.value=""; renderThumbs();
+});
+function renderThumbs(){
+  const box=$("#thumbs");
+  box.innerHTML=images.map((src,i)=>
+    `<div class="thumb"><img src="${src}"><button type="button" class="rm" data-i="${i}">×</button></div>`
+  ).join("");
+  box.querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>{
+    images.splice(+b.dataset.i,1); renderThumbs();
+  }));
+  $("#imgCount").textContent = images.length ? `${images.length}/${MAX_IMAGES} photos attached` : "";
+}
+
+/* ---------------- Voice note (MediaRecorder, capped) ---------------- */
+let mediaRec=null, chunks=[], recTimer=null, recSecs=0;
+$("#recBtn").addEventListener("click",async()=>{
+  if(mediaRec && mediaRec.state==="recording"){ stopRec(); return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){
+    alert("Voice recording isn't supported on this browser. You can type the remark instead."); return;
+  }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    chunks=[]; mediaRec=new MediaRecorder(stream);
+    voiceMime=mediaRec.mimeType||"audio/webm";
+    mediaRec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
+    mediaRec.onstop=()=>{
+      stream.getTracks().forEach(t=>t.stop());
+      const blob=new Blob(chunks,{type:voiceMime});
+      const rd=new FileReader();
+      rd.onload=()=>{ voiceData=rd.result; const p=$("#voicePlay"); p.src=voiceData; p.style.display="block"; $("#recClear").style.display="inline"; };
+      rd.readAsDataURL(blob);
+    };
+    mediaRec.start();
+    recSecs=0; updateRecTime();
+    $("#recBtn").textContent="⏹ Stop"; $("#recBtn").classList.add("live");
+    $("#voicePlay").style.display="none"; $("#recClear").style.display="none"; voiceData=null;
+    recTimer=setInterval(()=>{ recSecs++; updateRecTime(); if(recSecs>=VOICE_MAX_SEC) stopRec(); },1000);
+  }catch(err){ alert("Microphone permission is needed to record a voice note."); }
+});
+function stopRec(){
+  if(mediaRec && mediaRec.state==="recording") mediaRec.stop();
+  clearInterval(recTimer);
+  $("#recBtn").textContent="🎤 Record voice note"; $("#recBtn").classList.remove("live");
+  $("#recTime").textContent="";
+}
+function updateRecTime(){
+  const m=String(Math.floor(recSecs/60)),s=String(recSecs%60).padStart(2,"0");
+  $("#recTime").textContent=`${m}:${s} / 1:00`;
+}
+$("#recClear").addEventListener("click",()=>{
+  voiceData=null; voiceMime=null;
+  const p=$("#voicePlay"); p.style.display="none"; p.src=""; $("#recClear").style.display="none";
 });
 
 /* ---------------- Connectivity UI ---------------- */
@@ -417,7 +526,7 @@ $("#submitBtn").addEventListener("click",async()=>{
     engineer:eng,
     remarks:$("#remarks").value.trim(),
     signature:signed?$("#sig").toDataURL("image/png"):null,
-    stamp:stampData, items
+    images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
   await Store.save(rec);
   await refreshOutbox();
@@ -459,15 +568,49 @@ async function refreshOutbox(){
       const checked=r.items.filter(i=>i.eng||i.tech).length;
       const sc=r.status==="synced"?"s-synced":"s-pending";
       const lbl=r.status==="synced"?"Synced ✓":"Pending ↑";
+      const nImg=(r.images||[]).length;
+      const extras=[
+        r.signature?"signed":"unsigned",
+        nImg?`${nImg} photo${nImg>1?"s":""}`:"no photos",
+        r.voice?"voice ✓":null,
+        r.remarks?"remark ✓":null
+      ].filter(Boolean).join(" · ");
       return `<div class="rec"><div class="top">
         <span class="reg">${r.registration||"—"}</span>
         <span class="status ${sc}">${lbl}</span></div>
-        <div class="meta">${r.date||"no date"} · ${r.engineer||"—"} · ${checked}/${r.items.length} items · ${r.signature?"signed":"unsigned"} · ${r.stamp?"stamp":"no stamp"}</div>
+        <div class="meta">${r.date||"no date"} · ${r.engineer||"—"} · ${checked}/${r.items.length} items · ${extras}</div>
         <div class="meta">ID ${r.id.slice(0,13)}… · saved ${new Date(r.createdAt).toLocaleString()}</div>
+        <button class="dlbtn" data-dl="${r.id}">⬇ Download copy</button>
       </div>`;
     }).join("");
+    list.querySelectorAll("[data-dl]").forEach(b=>b.addEventListener("click",()=>downloadRecord(b.dataset.dl)));
   }
   updateBadges();
+}
+
+/* ---------------- Download a submission as a self-contained HTML file ---------------- */
+async function downloadRecord(id){
+  const rec=(await Store.all()).find(r=>r.id===id); if(!rec) return;
+  const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+  const rows=rec.items.map(i=>`<tr><td>${esc(i.item)}</td><td style="text-align:center">${i.eng?"✓":""}</td><td style="text-align:center">${i.tech?"✓":""}</td></tr>`).join("");
+  const imgs=(rec.images||[]).map(src=>`<img src="${src}" style="max-width:100%;border:1px solid #ccc;border-radius:8px;margin:6px 0">`).join("");
+  const remarks=rec.remarks?`<div style="border-left:4px solid #C9A84C;background:#FAF6EC;padding:10px 14px;margin:12px 0"><b>Remarks:</b><br>${esc(rec.remarks).replace(/\n/g,"<br>")}</div>`:"";
+  const voice=rec.voice?`<p><b>Voice note:</b></p><audio controls src="${rec.voice}" style="width:100%"></audio>`:"";
+  const sig=rec.signature?`<p><b>Signature:</b></p><img src="${rec.signature}" style="border:1px solid #ccc;border-radius:8px;max-width:320px">`:"";
+  const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pre-flight ${esc(rec.registration)} ${esc(rec.date)}</title></head>
+  <body style="font-family:Arial,sans-serif;color:#0d1526;max-width:760px;margin:20px auto;padding:0 14px">
+  <h2 style="color:#071A5A">Gulfstream Pre-flight Checklist</h2>
+  <p><b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN/CSN:</b> ${esc(rec.tsn)} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
+  <p><b>Engineer:</b> ${esc(rec.engineer)} &nbsp; <b>ID:</b> ${esc(rec.id)}</p>
+  <table style="border-collapse:collapse;width:100%;font-size:13px" border="1" cellpadding="5">
+  <tr style="background:#071A5A;color:#fff"><th style="text-align:left">Item</th><th>ENG</th><th>TECH</th></tr>${rows}</table>
+  ${remarks}${voice}${imgs?`<p><b>Photos:</b></p>${imgs}`:""}${sig}
+  </body></html>`;
+  const blob=new Blob([doc],{type:"text/html"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`preflight_${(rec.registration||"aircraft").replace(/[^\w-]/g,"")}_${rec.date||"nodate"}_${rec.id.slice(0,6)}.html`;
+  a.click(); URL.revokeObjectURL(a.href);
 }
 async function updateBadges(){
   const recs=await Store.all();
@@ -500,8 +643,9 @@ function resetForm(){
   Object.keys(marks).forEach(k=>delete marks[k]);
   document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
   updateProgress();
-  $("#clearSig").click(); stampData=null;
-  const p=$("#stampPrev"); p.style.display="none"; p.src="";
+  $("#clearSig").click();
+  images=[]; renderThumbs();
+  $("#recClear").click(); stopRec();
 }
 $("#resetBtn").addEventListener("click",()=>{ if(confirm("Clear this form?")) resetForm(); });
 
