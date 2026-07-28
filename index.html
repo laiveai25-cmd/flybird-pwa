@@ -246,6 +246,7 @@
   <!-- OUTBOX VIEW -->
   <section id="viewOut" style="display:none">
     <div id="storeBanner" class="banner"></div>
+    <div id="syncError" class="banner" style="display:none;background:rgba(178,58,72,.14);border-color:var(--offline);color:var(--offline)"></div>
     <div id="reclist"></div>
   </section>
 
@@ -266,10 +267,10 @@
 /* ============================================================
    CONFIG — the only two lines you change to go to production
    ============================================================ */
-const DEMO_MODE = false;          // true = simulate sending (for the preview/prototype)
+const DEMO_MODE = true;          // true = simulate sending (for the preview/prototype)
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
-const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
+const APP_TOKEN = "CHANGE_ME_APP_TOKEN"; // MUST exactly match the APP_TOKEN env var in Vercel
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -633,6 +634,7 @@ $("#submitBtn").addEventListener("click",async()=>{
 let syncing=false;
 async function attemptSync(){
   if(syncing) return; syncing=true;
+  let lastError=null;
   try{
     const recs=(await Store.all()).filter(r=>r.status==="pending");
     if(online()){
@@ -651,12 +653,24 @@ async function attemptSync(){
               showLogin("Your sign-in is no longer valid. Please sign in again.");
               return;
             }
-          }catch(e){ ok=false; }
+            if(!ok){
+              // Surface WHY it failed instead of silently retrying forever.
+              const data=await resp.json().catch(()=>({}));
+              lastError=data.detail || data.error || ("Server error "+resp.status);
+            }
+          }catch(e){ ok=false; lastError="Couldn't reach the server. Check your connection."; }
         }
         if(ok){ r.status="synced"; r.syncedAt=new Date().toISOString(); await Store.save(r); await refreshOutbox(); }
       }
     }
-  } finally { syncing=false; updateBadges(); }
+  } finally {
+    syncing=false; updateBadges();
+    const banner=$("#syncError");
+    if(banner){
+      if(lastError){ banner.style.display="block"; banner.textContent="Submission couldn't be sent: "+lastError; }
+      else banner.style.display="none";
+    }
+  }
 }
 $("#syncBtn").addEventListener("click",attemptSync);
 
