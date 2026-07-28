@@ -267,10 +267,10 @@
 /* ============================================================
    CONFIG — the only two lines you change to go to production
    ============================================================ */
-const DEMO_MODE = false;          // true = simulate sending (for the preview/prototype)
+const DEMO_MODE = true;          // true = simulate sending (for the preview/prototype)
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
-const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
+const APP_TOKEN = "CHANGE_ME_APP_TOKEN"; // MUST exactly match the APP_TOKEN env var in Vercel
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -444,21 +444,41 @@ function updateProgress(){
 }
 
 /* ---------------- Signature pad ---------------- */
-let sigCtx, drawing=false, signed=false;
-function initSig(){
+let sigCtx, drawing=false, signed=false, sigFitted=false;
+function fitSig(){
   const c=$("#sig"); const r=c.getBoundingClientRect();
-  c.width=r.width*devicePixelRatio; c.height=150*devicePixelRatio;
+  // If the canvas is still hidden (inside a display:none container) its size is 0 —
+  // sizing it now would produce a zero-width canvas that exports blank. Bail and retry later.
+  if(r.width<2 || r.height<2) return false;
+  c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio;
   sigCtx=c.getContext("2d"); sigCtx.scale(devicePixelRatio,devicePixelRatio);
-  sigCtx.lineWidth=2.2; sigCtx.lineCap="round"; sigCtx.strokeStyle="#0d1526";
+  sigCtx.lineWidth=2.2; sigCtx.lineCap="round"; sigCtx.lineJoin="round"; sigCtx.strokeStyle="#0d1526";
+  signed=false; $("#sighint").style.display="grid";
+  sigFitted=true; return true;
+}
+function initSig(){
+  const c=$("#sig");
   const pos=e=>{const b=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return[t.clientX-b.left,t.clientY-b.top];};
-  const start=e=>{drawing=true;signed=true;$("#sighint").style.display="none";const[x,y]=pos(e);sigCtx.beginPath();sigCtx.moveTo(x,y);e.preventDefault();};
+  const start=e=>{ if(!sigFitted && !fitSig()) return; drawing=true;signed=true;$("#sighint").style.display="none";const[x,y]=pos(e);sigCtx.beginPath();sigCtx.moveTo(x,y);e.preventDefault();};
   const move=e=>{if(!drawing)return;const[x,y]=pos(e);sigCtx.lineTo(x,y);sigCtx.stroke();e.preventDefault();};
   const end=()=>drawing=false;
   c.addEventListener("pointerdown",start); c.addEventListener("pointermove",move);
   window.addEventListener("pointerup",end);
+  // Re-fit on rotation/resize, but only when nothing is drawn yet (avoids wiping a signature).
+  window.addEventListener("resize",()=>{ if(!signed) fitSig(); });
+  window.addEventListener("orientationchange",()=>{ if(!signed) setTimeout(fitSig,200); });
+}
+// True only if the canvas actually contains ink — guards against a "signed" flag with a blank export.
+function sigHasInk(){
+  try{
+    const c=$("#sig"); if(!c.width||!c.height) return false;
+    const d=sigCtx.getImageData(0,0,c.width,c.height).data;
+    for(let i=3;i<d.length;i+=4){ if(d[i]!==0) return true; } // any non-transparent pixel
+    return false;
+  }catch(e){ return signed; }
 }
 $("#clearSig").addEventListener("click",()=>{
-  const c=$("#sig"); sigCtx.clearRect(0,0,c.width,c.height); signed=false; $("#sighint").style.display="grid";
+  const c=$("#sig"); if(sigCtx) sigCtx.clearRect(0,0,c.width,c.height); signed=false; $("#sighint").style.display="grid";
 });
 
 /* ---------------- Multi-image capture (with compression) ---------------- */
@@ -570,6 +590,8 @@ function showApp(){
     : "";
   const so=$("#signout"); if(so) so.addEventListener("click",signOut);
   goTo("form");
+  // Canvas is now visible — size it after layout settles (double rAF).
+  requestAnimationFrame(()=>requestAnimationFrame(fitSig));
 }
 async function signOut(){
   auth=null; await Store.clearAuth(); $("#passcode").value=""; showLogin("Signed out.");
@@ -600,6 +622,9 @@ $("#submitBtn").addEventListener("click",async()=>{
   if(!auth){ showLogin("Please sign in first."); return; }
   const reg=$("#reg").value.trim();
   if(!reg){alert("Please select an aircraft registration.");return;}
+  // Require a real signature — checks for actual ink, not just the tap flag.
+  const hasInk = signed && sigHasInk();
+  if(!hasInk){ alert("Please sign in the signature box before submitting."); return; }
   const items=[];
   CHECKLIST.forEach((sec,si)=>sec[1].forEach((desc,ii)=>items.push({
     section:sec[0], item:desc,
@@ -610,7 +635,7 @@ $("#submitBtn").addEventListener("click",async()=>{
     registration:reg, tsn:$("#tsn").value.trim(), date:$("#date").value,
     engineer:auth.name, authToken:auth.token,
     remarks:$("#remarks").value.trim(),
-    signature:signed?$("#sig").toDataURL("image/png"):null,
+    signature:$("#sig").toDataURL("image/png"),
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
 
