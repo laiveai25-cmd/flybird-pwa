@@ -95,6 +95,50 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "engineer no longer approved" });
     }
 
+    // Save durably to Supabase FIRST. This is the system of record — email is
+    // just a notification on top of it. `on_conflict=id` + ignore-duplicates
+    // means a retried submission is a no-op here (idempotent) instead of a
+    // second row.
+    let isDuplicate = false;
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      try {
+        const dbResp = await fetch(
+          `${process.env.SUPABASE_URL}/rest/v1/submissions?on_conflict=id`,
+          {
+            method: "POST",
+            headers: {
+              apikey: process.env.SUPABASE_SERVICE_KEY,
+              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "resolution=ignore-duplicates,return=representation",
+            },
+            body: JSON.stringify({
+              id: r.id,
+              registration: r.registration,
+              tsn: r.tsn,
+              date: r.date,
+              engineer: name,
+              remarks: r.remarks,
+              items: r.items,
+              signature: r.signature,
+              images: r.images,
+              voice: r.voice,
+              voice_mime: r.voiceMime,
+            }),
+          }
+        );
+        const inserted = await dbResp.json().catch(() => []);
+        // Empty array back = the row already existed (ignore-duplicates fired) = this is a retry.
+        isDuplicate = Array.isArray(inserted) && inserted.length === 0;
+      } catch (e) {
+        // Storage being unreachable should not block the email — log and continue.
+        console.error("Supabase insert failed:", e);
+      }
+    }
+    if (isDuplicate) {
+      return res.status(200).json({ ok: true, id: r.id, duplicate: true });
+    }
+
     const rows = (r.items || [])
       .map(
         (i) =>
@@ -154,8 +198,24 @@ export default async function handler(req, res) {
 
     if (!resp.ok) {
       const detail = await resp.text();
-      return res.status(502).json({ error: "email failed", detail });
+      // The record is already safely stored above — a failed email does NOT lose the
+      // inspection. It just means this one needs a resend once the config is fixed.
+      return res.status(422).json({ error: "email failed", detail });
     }
+
+    // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      fetch(`${process.env.SUPABASE_URL}/rest/v1/submissions?id=eq.${r.id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emailed_at: new Date().toISOString() }),
+      }).catch(() => {});
+    }
+
     return res.status(200).json({ ok: true, id: r.id, engineer: name });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
