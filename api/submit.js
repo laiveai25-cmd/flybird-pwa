@@ -169,16 +169,31 @@ export default async function handler(req, res) {
         <p style="margin-top:14px;color:#5a6577;font-size:12px">${attachSummary(r)}</p>
       </div>`;
 
+    // Build attachments defensively. A data URL looks like "data:<mime>;base64,<DATA>".
+    // If DATA is missing/empty (malformed capture), skip that attachment rather than
+    // letting Resend reject the entire email with "invalid_attachment".
+    const b64 = (dataUrl) => {
+      if (typeof dataUrl !== "string") return null;
+      const comma = dataUrl.indexOf(",");
+      if (comma === -1) return null;
+      const data = dataUrl.slice(comma + 1).trim();
+      return data.length ? data : null;
+    };
+
     const attachments = [];
-    if (r.signature) attachments.push({ filename: "signature.png", content: r.signature.split(",")[1] });
+    const sig = b64(r.signature);
+    if (sig) attachments.push({ filename: "signature.png", content: sig });
     (r.images || []).forEach((img, idx) => {
+      const content = b64(img);
+      if (!content) return;
       const ext = (img.split(";")[0].split("/")[1] || "jpg");
-      attachments.push({ filename: `photo-${idx + 1}.${ext}`, content: img.split(",")[1] });
+      attachments.push({ filename: `photo-${idx + 1}.${ext}`, content });
     });
-    if (r.voice) {
-      const raw = (r.voiceMime || r.voice.split(";")[0].split(":")[1] || "audio/webm");
+    const voice = b64(r.voice);
+    if (voice) {
+      const raw = (r.voiceMime || (r.voice.split(";")[0].split(":")[1]) || "audio/webm");
       const ext = raw.includes("mp4") || raw.includes("m4a") ? "m4a" : raw.includes("ogg") ? "ogg" : "webm";
-      attachments.push({ filename: `voice-note.${ext}`, content: r.voice.split(",")[1] });
+      attachments.push({ filename: `voice-note.${ext}`, content: voice });
     }
 
     const resp = await fetch("https://api.resend.com/emails", {
