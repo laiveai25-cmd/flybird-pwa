@@ -452,7 +452,7 @@ function fitSig(){
   if(r.width<2 || r.height<2) return false;
   c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio;
   sigCtx=c.getContext("2d"); sigCtx.scale(devicePixelRatio,devicePixelRatio);
-  sigCtx.lineWidth=2.2; sigCtx.lineCap="round"; sigCtx.lineJoin="round"; sigCtx.strokeStyle="#0d1526";
+  sigCtx.lineWidth=2.8; sigCtx.lineCap="round"; sigCtx.lineJoin="round"; sigCtx.strokeStyle="#0A1020";
   signed=false; $("#sighint").style.display="grid";
   sigFitted=true; return true;
 }
@@ -625,6 +625,14 @@ $("#submitBtn").addEventListener("click",async()=>{
   // Require a real signature — checks for actual ink, not just the tap flag.
   const hasInk = signed && sigHasInk();
   if(!hasInk){ alert("Please sign in the signature box before submitting."); return; }
+  // Flatten the signature onto a white background so it's legible on any viewer
+  // (a transparent PNG vanishes on dark backgrounds like a phone gallery).
+  const sigC=$("#sig");
+  const flat=document.createElement("canvas"); flat.width=sigC.width; flat.height=sigC.height;
+  const fctx=flat.getContext("2d");
+  fctx.fillStyle="#ffffff"; fctx.fillRect(0,0,flat.width,flat.height);
+  fctx.drawImage(sigC,0,0);
+  const signaturePng=flat.toDataURL("image/png");
   const items=[];
   CHECKLIST.forEach((sec,si)=>sec[1].forEach((desc,ii)=>items.push({
     section:sec[0], item:desc,
@@ -635,7 +643,7 @@ $("#submitBtn").addEventListener("click",async()=>{
     registration:reg, tsn:$("#tsn").value.trim(), date:$("#date").value,
     engineer:auth.name, authToken:auth.token,
     remarks:$("#remarks").value.trim(),
-    signature:$("#sig").toDataURL("image/png"),
+    signature:signaturePng,
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
 
