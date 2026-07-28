@@ -266,10 +266,10 @@
 /* ============================================================
    CONFIG — the only two lines you change to go to production
    ============================================================ */
-const DEMO_MODE = false;          // true = simulate sending (for the preview/prototype)
+const DEMO_MODE = true;          // true = simulate sending (for the preview/prototype)
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
-const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
+const APP_TOKEN = "CHANGE_ME_APP_TOKEN"; // MUST exactly match the APP_TOKEN env var in Vercel
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -367,6 +367,11 @@ const Store = (() => {
       c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else ok(out);};});}
     return [...mem];
   }
+  async function remove(id){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("subs","readwrite");
+      tx.objectStore("subs").delete(id); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
+    mem=mem.filter(x=>x.id!==id);
+  }
   async function setAuth(obj){
     if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("auth","readwrite");
       tx.objectStore("auth").put({k:"auth",...obj});tx.oncomplete=()=>ok();tx.onerror=()=>no();});}
@@ -382,7 +387,7 @@ const Store = (() => {
       tx.objectStore("auth").delete("auth"); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
     memAuth=null;
   }
-  return {init:async()=>{await open();return usingIDB;}, save, all, setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}};
+  return {init:async()=>{await open();return usingIDB;}, save, all, remove, setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}};
 })();
 
 /* ---------------- App state ---------------- */
@@ -502,7 +507,7 @@ $("#recBtn").addEventListener("click",async()=>{
   }
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    chunks=[]; mediaRec=new MediaRecorder(stream);
+    chunks=[]; mediaRec=new MediaRecorder(stream,{audioBitsPerSecond:16000});
     voiceMime=mediaRec.mimeType||"audio/webm";
     mediaRec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
     mediaRec.onstop=()=>{
@@ -574,7 +579,7 @@ $("#loginBtn").addEventListener("click",async()=>{
   if(!code){ $("#loginMsg").textContent="Enter your passcode."; return; }
   $("#loginMsg").textContent="Verifying…";
   if(DEMO_MODE){   // preview has no backend — accept any code so the flow is demoable
-    auth={token:"demo."+code, name:"Demo Engineer ("+code+")"};
+    auth={token:"demo."+code, name:"Demo Engineer"};
     await Store.setAuth(auth); showApp(); return;
   }
   if(!navigator.onLine){ $("#loginMsg").style.color="var(--offline)";
@@ -607,6 +612,16 @@ $("#submitBtn").addEventListener("click",async()=>{
     signature:signed?$("#sig").toDataURL("image/png"):null,
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
+
+  // Safety net: Vercel rejects request bodies over ~4.5MB with an unhelpful raw error.
+  // Catch it here first with a clear, actionable message instead of a silent sync failure later.
+  const approxBytes = new Blob([JSON.stringify(rec)]).size;
+  const SAFE_LIMIT = 3.8 * 1024 * 1024; // stay comfortably under the 4.5MB platform ceiling
+  if(approxBytes > SAFE_LIMIT){
+    alert(`This submission is too large to send (${(approxBytes/1024/1024).toFixed(1)}MB).\n\nRemove a photo or shorten/re-record the voice note, then try again.`);
+    return;
+  }
+
   await Store.save(rec);
   await refreshOutbox();
   resetForm();
@@ -667,10 +682,18 @@ async function refreshOutbox(){
         <span class="status ${sc}">${lbl}</span></div>
         <div class="meta">${r.date||"no date"} · ${r.engineer||"—"} · ${checked}/${r.items.length} items · ${extras}</div>
         <div class="meta">ID ${r.id.slice(0,13)}… · saved ${new Date(r.createdAt).toLocaleString()}</div>
-        <button class="dlbtn" data-dl="${r.id}">⬇ Download copy</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="dlbtn" data-dl="${r.id}">⬇ Download copy</button>
+          ${r.status==="pending"?`<button class="dlbtn" data-del="${r.id}" style="color:var(--offline);border-color:var(--offline)">✕ Delete (stuck submission)</button>`:""}
+        </div>
       </div>`;
     }).join("");
     list.querySelectorAll("[data-dl]").forEach(b=>b.addEventListener("click",()=>downloadRecord(b.dataset.dl)));
+    list.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(confirm("Delete this submission from the device? Download a copy first if you need the record.")){
+        await Store.remove(b.dataset.del); await refreshOutbox();
+      }
+    }));
   }
   updateBadges();
 }
