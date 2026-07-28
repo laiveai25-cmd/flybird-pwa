@@ -164,6 +164,19 @@
 </header>
 
 <main>
+  <!-- LOGIN GATE -->
+  <section id="viewLogin" class="card" style="display:none">
+    <h2 class="sec">Engineer Sign-in</h2>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 12px">
+      Enter the passcode issued to you. You only need to do this <b>once, while online</b> — after that the app works fully offline on this device.
+    </p>
+    <label class="fld">Passcode</label>
+    <input id="passcode" type="text" inputmode="numeric" autocomplete="off" placeholder="••••">
+    <button class="btn primary" id="loginBtn" style="width:100%;margin-top:12px">Verify & continue</button>
+    <div id="loginMsg" style="font-size:12px;margin-top:10px;min-height:16px"></div>
+  </section>
+
+  <div id="appWrap" style="display:none">
   <div class="tabs">
     <div id="tabForm" class="tab active">New inspection</div>
     <div id="tabOut" class="tab">Outbox <span id="tabcount"></span></div>
@@ -206,8 +219,8 @@
 
     <div class="card">
       <h2 class="sec">Sign-off</h2>
-      <label class="fld">Engineer's Name</label>
-      <input id="eng" type="text" placeholder="Full name" autocomplete="off" style="margin-bottom:12px">
+      <label class="fld">Engineer (verified at sign-in)</label>
+      <div id="engName" style="font-family:var(--mono);font-weight:700;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--chip);margin-bottom:12px"></div>
       <label class="fld">Signature</label>
       <div class="sigwrap">
         <canvas id="sig"></canvas>
@@ -236,7 +249,9 @@
     <div id="reclist"></div>
   </section>
 
+  <div class="foot" id="whoami" style="display:none"></div>
   <div class="foot" id="modeFoot"></div>
+  </div><!-- /appWrap -->
 </main>
 
 <div class="bar" id="formBar">
@@ -251,9 +266,10 @@
 /* ============================================================
    CONFIG — the only two lines you change to go to production
    ============================================================ */
-const DEMO_MODE = true;          // true = simulate sending (for the preview/prototype)
+const DEMO_MODE = false;          // true = simulate sending (for the preview/prototype)
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
+const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -325,12 +341,16 @@ const CHECKLIST = [
 
 /* ---------------- Durable storage (IndexedDB + fallback) ---------------- */
 const Store = (() => {
-  let db=null, mem=[], usingIDB=false;
+  let db=null, mem=[], memAuth=null, usingIDB=false;
   function open(){
     return new Promise(res=>{
       try{
-        const r=indexedDB.open("flybird-preflight",1);
-        r.onupgradeneeded=e=>e.target.result.createObjectStore("subs",{keyPath:"id"});
+        const r=indexedDB.open("flybird-preflight",2);
+        r.onupgradeneeded=e=>{
+          const d=e.target.result;
+          if(!d.objectStoreNames.contains("subs")) d.createObjectStore("subs",{keyPath:"id"});
+          if(!d.objectStoreNames.contains("auth")) d.createObjectStore("auth",{keyPath:"k"});
+        };
         r.onsuccess=e=>{db=e.target.result;usingIDB=true;res(true);};
         r.onerror=()=>res(false);
       }catch(e){res(false);}
@@ -347,7 +367,22 @@ const Store = (() => {
       c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else ok(out);};});}
     return [...mem];
   }
-  return {init:async()=>{await open();return usingIDB;}, save, all, get persistent(){return usingIDB;}};
+  async function setAuth(obj){
+    if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("auth","readwrite");
+      tx.objectStore("auth").put({k:"auth",...obj});tx.oncomplete=()=>ok();tx.onerror=()=>no();});}
+    memAuth={...obj};
+  }
+  async function getAuth(){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("auth","readonly");
+      const g=tx.objectStore("auth").get("auth"); g.onsuccess=()=>ok(g.result||null); g.onerror=()=>ok(null);});}
+    return memAuth;
+  }
+  async function clearAuth(){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("auth","readwrite");
+      tx.objectStore("auth").delete("auth"); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
+    memAuth=null;
+  }
+  return {init:async()=>{await open();return usingIDB;}, save, all, setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}};
 })();
 
 /* ---------------- App state ---------------- */
@@ -355,6 +390,7 @@ const marks = {};   // key `${s}-${i}-eng|tech` -> bool
 let images = [];    // array of compressed JPEG data URLs
 let voiceData = null, voiceMime = null;
 let forceOffline = false;
+let auth = null;    // { token, name } once signed in
 
 /* Limits — tuned so total payload stays well under Vercel's request-body ceiling */
 const MAX_IMAGES = 6;
@@ -511,10 +547,53 @@ $("#offSwitch").addEventListener("click",()=>{
 window.addEventListener("online",()=>{refreshConn();attemptSync();});
 window.addEventListener("offline",refreshConn);
 
+/* ---------------- Auth gate ---------------- */
+function showLogin(msg){
+  $("#viewLogin").style.display="block";
+  $("#appWrap").style.display="none";
+  $("#formBar").style.display="none";
+  $("#outBar").style.display="none";
+  if(msg) $("#loginMsg").textContent=msg;
+}
+function showApp(){
+  $("#viewLogin").style.display="none";
+  $("#appWrap").style.display="block";
+  $("#engName").textContent = auth ? auth.name : "";
+  $("#whoami").innerHTML = auth
+    ? `Signed in as ${auth.name} · <button class="link" id="signout">Sign out</button>`
+    : "";
+  const so=$("#signout"); if(so) so.addEventListener("click",signOut);
+  goTo("form");
+}
+async function signOut(){
+  auth=null; await Store.clearAuth(); $("#passcode").value=""; showLogin("Signed out.");
+}
+$("#loginBtn").addEventListener("click",async()=>{
+  const code=$("#passcode").value.trim();
+  $("#loginMsg").style.color="var(--muted)";
+  if(!code){ $("#loginMsg").textContent="Enter your passcode."; return; }
+  $("#loginMsg").textContent="Verifying…";
+  if(DEMO_MODE){   // preview has no backend — accept any code so the flow is demoable
+    auth={token:"demo."+code, name:"Demo Engineer ("+code+")"};
+    await Store.setAuth(auth); showApp(); return;
+  }
+  if(!navigator.onLine){ $("#loginMsg").style.color="var(--offline)";
+    $("#loginMsg").textContent="You must be online to sign in the first time."; return; }
+  try{
+    const resp=await fetch(BACKEND_URL,{method:"POST",
+      headers:{"Content-Type":"application/json","x-app-token":APP_TOKEN},
+      body:JSON.stringify({action:"auth", code})});
+    const data=await resp.json().catch(()=>({}));
+    if(resp.ok && data.ok){ auth={token:data.token, name:data.name}; await Store.setAuth(auth); showApp(); }
+    else { $("#loginMsg").style.color="var(--offline)"; $("#loginMsg").textContent=data.error||"Passcode not recognised."; }
+  }catch(e){ $("#loginMsg").style.color="var(--offline)"; $("#loginMsg").textContent="Couldn't reach the server. Try again."; }
+});
+
 /* ---------------- Submit ---------------- */
 $("#submitBtn").addEventListener("click",async()=>{
-  const reg=$("#reg").value.trim(), eng=$("#eng").value.trim();
-  if(!reg||!eng){alert("Aircraft Registration and Engineer's Name are required.");return;}
+  if(!auth){ showLogin("Please sign in first."); return; }
+  const reg=$("#reg").value.trim();
+  if(!reg){alert("Please select an aircraft registration.");return;}
   const items=[];
   CHECKLIST.forEach((sec,si)=>sec[1].forEach((desc,ii)=>items.push({
     section:sec[0], item:desc,
@@ -523,7 +602,7 @@ $("#submitBtn").addEventListener("click",async()=>{
   const rec={
     id:uuid(), status:"pending", createdAt:new Date().toISOString(),
     registration:reg, tsn:$("#tsn").value.trim(), date:$("#date").value,
-    engineer:eng,
+    engineer:auth.name, authToken:auth.token,
     remarks:$("#remarks").value.trim(),
     signature:signed?$("#sig").toDataURL("image/png"):null,
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
@@ -547,8 +626,16 @@ async function attemptSync(){
         if(DEMO_MODE){ await new Promise(res=>setTimeout(res,700)); ok=true; }
         else{
           try{
-            const resp=await fetch(BACKEND_URL,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(r)});
+            const resp=await fetch(BACKEND_URL,{method:"POST",
+              headers:{"Content-Type":"application/json","x-app-token":APP_TOKEN},
+              body:JSON.stringify(r)});
             ok=resp.ok;
+            if(resp.status===401||resp.status===403){
+              // token invalid or engineer revoked — stop, force re-login
+              auth=null; await Store.clearAuth();
+              showLogin("Your sign-in is no longer valid. Please sign in again.");
+              return;
+            }
           }catch(e){ ok=false; }
         }
         if(ok){ r.status="synced"; r.syncedAt=new Date().toISOString(); await Store.save(r); await refreshOutbox(); }
@@ -637,7 +724,7 @@ $("#tabOut").addEventListener("click",()=>goTo("out"));
 
 /* ---------------- Reset ---------------- */
 function resetForm(){
-  ["tsn","eng","remarks"].forEach(id=>$("#"+id).value="");
+  ["tsn","remarks"].forEach(id=>$("#"+id).value="");
   $("#reg").selectedIndex=0;
   $("#date").valueAsDate=new Date();
   Object.keys(marks).forEach(k=>delete marks[k]);
@@ -662,7 +749,9 @@ $("#resetBtn").addEventListener("click",()=>{ if(confirm("Clear this form?")) re
   $("#date").valueAsDate=new Date();
   refreshConn();
   await refreshOutbox();
-  if(online()) attemptSync();
+  auth = await Store.getAuth();
+  if(auth && auth.token){ showApp(); if(online()) attemptSync(); }
+  else { showLogin(); }
   if("serviceWorker" in navigator){ try{ navigator.serviceWorker.register("sw.js"); }catch(e){} }
 })();
 </script>
