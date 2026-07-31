@@ -27,7 +27,7 @@
   .mono{font-family:var(--mono)}
 
   /* Status bar */
-  header{position:sticky; top:0; z-index:20; background:var(--navy);
+  header{position:sticky; top:0; z-index:20; background:var(--accent,var(--navy)); transition:background .2s;
     color:#fff; padding:calc(env(safe-area-inset-top) + 10px) 16px 10px;
     box-shadow:0 2px 10px rgba(7,26,90,.25)}
   .hrow{display:flex; align-items:center; gap:10px}
@@ -64,16 +64,35 @@
   .acc{border:1px solid var(--line);border-radius:14px;background:var(--card);margin-bottom:10px;overflow:hidden}
   .acc>summary{list-style:none;cursor:pointer;padding:14px;display:flex;align-items:center;gap:10px}
   .acc>summary::-webkit-details-marker{display:none}
-  .snum{font-family:var(--mono);font-size:12px;color:#fff;background:var(--blue);
+  .snum{font-family:var(--mono);font-size:12px;color:#fff;background:var(--accent,var(--blue));
     width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex:0 0 auto;font-weight:700}
   .stitle{font-size:14px;font-weight:700;flex:1}
   .sprog{font-family:var(--mono);font-size:11px;color:var(--muted);white-space:nowrap}
   .chev{transition:transform .2s;color:var(--muted)}
   .acc[open] .chev{transform:rotate(90deg)}
   .items{padding:0 12px 6px}
-  .item{border-top:1px solid var(--line);padding:11px 2px;display:flex;gap:10px;align-items:flex-start}
+  .item{border-top:1px solid var(--line);padding:11px 2px}
+  .itemtop{display:flex;gap:10px;align-items:flex-start}
   .idesc{flex:1;font-size:13.5px}
   .marks{display:flex;gap:6px;flex:0 0 auto}
+  .notebtn{margin-top:8px;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--muted);
+    background:none;border:none;cursor:pointer;padding:2px 0}
+  .notebtn.has{color:var(--accent,#185FA5)}
+  .notebox{width:100%;margin-top:8px;font-family:var(--ui);font-size:14px;min-height:56px;
+    padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);resize:vertical}
+
+  /* Check-type selector */
+  .ctypes{display:flex;gap:8px}
+  .ctype{flex:1;font-size:13px;font-weight:700;padding:11px 6px;border-radius:10px;cursor:pointer;
+    background:var(--chip);color:var(--muted);border:1.5px solid var(--line)}
+  .ctype.active{color:#fff}
+
+  /* Airworthiness buttons */
+  .aw{display:flex;gap:10px}
+  .awbtn{flex:1;font-size:14px;font-weight:800;padding:14px;border-radius:11px;cursor:pointer;
+    background:var(--chip);border:2px solid var(--line);color:var(--muted)}
+  .awbtn.serv.on{background:var(--synced);border-color:var(--synced);color:#fff}
+  .awbtn.unserv.on{background:var(--offline);border-color:var(--offline);color:#fff}
   .chip{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;
     border:1px solid var(--line);background:var(--chip);color:var(--muted);
     padding:7px 9px;border-radius:9px;cursor:pointer;min-width:46px;text-align:center;user-select:none}
@@ -185,6 +204,15 @@
   <!-- FORM VIEW -->
   <section id="viewForm">
     <div class="card">
+      <h2 class="sec">Inspection Type</h2>
+      <div class="ctypes" id="ctypes">
+        <button type="button" class="ctype active" data-ct="Pre-flight" data-c="#185FA5">Pre-flight</button>
+        <button type="button" class="ctype" data-ct="Post-flight" data-c="#B0662E">Post-flight</button>
+        <button type="button" class="ctype" data-ct="Daily Check" data-c="#1D9E75">Daily Check</button>
+      </div>
+    </div>
+
+    <div class="card">
       <h2 class="sec">Aircraft & Flight</h2>
       <div class="grid2">
         <div><label class="fld">Aircraft Registration</label>
@@ -204,7 +232,7 @@
     <div id="sections"></div>
 
     <div class="card">
-      <h2 class="sec">Remarks & Notes</h2>
+      <h2 class="sec">General Remarks & Notes</h2>
       <label class="fld">Anything worth flagging — deferred items, observations, points for the incoming crew</label>
       <textarea id="remarks" placeholder="Optional. Type here, or record a voice note below."></textarea>
 
@@ -215,6 +243,19 @@
         <button class="link" id="recClear" style="display:none">Remove</button>
       </div>
       <audio id="voicePlay" controls style="display:none"></audio>
+    </div>
+
+    <div class="card">
+      <h2 class="sec">Airworthiness Determination</h2>
+      <label class="fld">Based on this inspection, the aircraft is:</label>
+      <div class="aw" id="awBtns">
+        <button type="button" class="awbtn serv" data-aw="Serviceable">✔ Serviceable</button>
+        <button type="button" class="awbtn unserv" data-aw="Unserviceable">✕ Unserviceable</button>
+      </div>
+      <div id="awReasonWrap" style="display:none;margin-top:12px">
+        <label class="fld">Reason for unserviceable status (required)</label>
+        <textarea id="awReason" placeholder="State the defect or reason the aircraft is not airworthy."></textarea>
+      </div>
     </div>
 
     <div class="card">
@@ -246,6 +287,7 @@
   <!-- OUTBOX VIEW -->
   <section id="viewOut" style="display:none">
     <div id="storeBanner" class="banner"></div>
+    <div id="syncError" class="banner" style="display:none;background:rgba(178,58,72,.14);border-color:var(--offline);color:var(--offline)"></div>
     <div id="reclist"></div>
   </section>
 
@@ -270,6 +312,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
+const APP_VERSION = "v11"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -367,6 +410,11 @@ const Store = (() => {
       c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else ok(out);};});}
     return [...mem];
   }
+  async function remove(id){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("subs","readwrite");
+      tx.objectStore("subs").delete(id); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
+    mem=mem.filter(x=>x.id!==id);
+  }
   async function setAuth(obj){
     if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("auth","readwrite");
       tx.objectStore("auth").put({k:"auth",...obj});tx.oncomplete=()=>ok();tx.onerror=()=>no();});}
@@ -382,15 +430,19 @@ const Store = (() => {
       tx.objectStore("auth").delete("auth"); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
     memAuth=null;
   }
-  return {init:async()=>{await open();return usingIDB;}, save, all, setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}};
+  return {init:async()=>{await open();return usingIDB;}, save, all, remove, setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}};
 })();
 
 /* ---------------- App state ---------------- */
 const marks = {};   // key `${s}-${i}-eng|tech` -> bool
+const comments = {}; // key `${s}-${i}` -> per-item note text
 let images = [];    // array of compressed JPEG data URLs
 let voiceData = null, voiceMime = null;
 let forceOffline = false;
 let auth = null;    // { token, name } once signed in
+let checkType = "Pre-flight";      // selected inspection type
+let checkColor = "#185FA5";        // accent for the selected type
+let airworthy = null;              // "Serviceable" | "Unserviceable"
 
 /* Limits — tuned so total payload stays well under Vercel's request-body ceiling */
 const MAX_IMAGES = 6;
@@ -416,18 +468,34 @@ function renderSections(){
     wrap.appendChild(d);
     const box=d.querySelector(`#items-${si}`);
     sec[1].forEach((desc,ii)=>{
+      const key=`${si}-${ii}`;
       const row=document.createElement("div"); row.className="item";
-      row.innerHTML=`<div class="idesc">${desc}</div>
-        <div class="marks">
-          <div class="chip" data-k="${si}-${ii}-eng">ENG</div>
-          <div class="chip" data-k="${si}-${ii}-tech">TECH</div>
-        </div>`;
+      row.innerHTML=`<div class="itemtop">
+          <div class="idesc">${desc}</div>
+          <div class="marks">
+            <div class="chip" data-k="${si}-${ii}-eng">ENG</div>
+            <div class="chip" data-k="${si}-${ii}-tech">TECH</div>
+          </div>
+        </div>
+        <button type="button" class="notebtn" data-note="${key}">＋ Add note</button>
+        <textarea class="notebox" data-nb="${key}" style="display:none" placeholder="Note for this item"></textarea>`;
       box.appendChild(row);
     });
   });
   wrap.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{
     const k=c.dataset.k; marks[k]=!marks[k]; c.classList.toggle("on",marks[k]);
     updateProgress();
+  }));
+  wrap.querySelectorAll(".notebtn").forEach(b=>b.addEventListener("click",()=>{
+    const nb=wrap.querySelector(`.notebox[data-nb="${b.dataset.note}"]`);
+    nb.style.display = nb.style.display==="none" ? "block" : "none";
+    if(nb.style.display==="block") nb.focus();
+  }));
+  wrap.querySelectorAll(".notebox").forEach(t=>t.addEventListener("input",()=>{
+    const key=t.dataset.nb; comments[key]=t.value.trim();
+    const btn=wrap.querySelector(`.notebtn[data-note="${key}"]`);
+    if(comments[key]){ btn.textContent="✎ Edit note"; btn.classList.add("has"); }
+    else { btn.textContent="＋ Add note"; btn.classList.remove("has"); }
   }));
 }
 function updateProgress(){
@@ -437,22 +505,60 @@ function updateProgress(){
   });
 }
 
+/* ---------------- Inspection type (colour-themed) ---------------- */
+function applyCheckType(btn){
+  document.querySelectorAll(".ctype").forEach(b=>{ b.classList.remove("active"); b.style.background=""; });
+  btn.classList.add("active"); btn.style.background=btn.dataset.c;
+  checkType=btn.dataset.ct; checkColor=btn.dataset.c;
+  document.documentElement.style.setProperty("--accent", checkColor);
+  const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", checkColor);
+}
+document.querySelectorAll(".ctype").forEach(b=>b.addEventListener("click",()=>applyCheckType(b)));
+
+/* ---------------- Airworthiness ---------------- */
+document.querySelectorAll(".awbtn").forEach(b=>b.addEventListener("click",()=>{
+  airworthy=b.dataset.aw;
+  document.querySelectorAll(".awbtn").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  $("#awReasonWrap").style.display = (airworthy==="Unserviceable") ? "block" : "none";
+}));
+
 /* ---------------- Signature pad ---------------- */
-let sigCtx, drawing=false, signed=false;
-function initSig(){
+let sigCtx, drawing=false, signed=false, sigFitted=false;
+function fitSig(){
   const c=$("#sig"); const r=c.getBoundingClientRect();
-  c.width=r.width*devicePixelRatio; c.height=150*devicePixelRatio;
+  // If the canvas is still hidden (inside a display:none container) its size is 0 —
+  // sizing it now would produce a zero-width canvas that exports blank. Bail and retry later.
+  if(r.width<2 || r.height<2) return false;
+  c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio;
   sigCtx=c.getContext("2d"); sigCtx.scale(devicePixelRatio,devicePixelRatio);
-  sigCtx.lineWidth=2.2; sigCtx.lineCap="round"; sigCtx.strokeStyle="#0d1526";
+  sigCtx.lineWidth=2.8; sigCtx.lineCap="round"; sigCtx.lineJoin="round"; sigCtx.strokeStyle="#DC143C";
+  signed=false; $("#sighint").style.display="grid";
+  sigFitted=true; return true;
+}
+function initSig(){
+  const c=$("#sig");
   const pos=e=>{const b=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return[t.clientX-b.left,t.clientY-b.top];};
-  const start=e=>{drawing=true;signed=true;$("#sighint").style.display="none";const[x,y]=pos(e);sigCtx.beginPath();sigCtx.moveTo(x,y);e.preventDefault();};
+  const start=e=>{ if(!sigFitted && !fitSig()) return; drawing=true;signed=true;$("#sighint").style.display="none";const[x,y]=pos(e);sigCtx.beginPath();sigCtx.moveTo(x,y);e.preventDefault();};
   const move=e=>{if(!drawing)return;const[x,y]=pos(e);sigCtx.lineTo(x,y);sigCtx.stroke();e.preventDefault();};
   const end=()=>drawing=false;
   c.addEventListener("pointerdown",start); c.addEventListener("pointermove",move);
   window.addEventListener("pointerup",end);
+  // Re-fit on rotation/resize, but only when nothing is drawn yet (avoids wiping a signature).
+  window.addEventListener("resize",()=>{ if(!signed) fitSig(); });
+  window.addEventListener("orientationchange",()=>{ if(!signed) setTimeout(fitSig,200); });
+}
+// True only if the canvas actually contains ink — guards against a "signed" flag with a blank export.
+function sigHasInk(){
+  try{
+    const c=$("#sig"); if(!c.width||!c.height) return false;
+    const d=sigCtx.getImageData(0,0,c.width,c.height).data;
+    for(let i=3;i<d.length;i+=4){ if(d[i]!==0) return true; } // any non-transparent pixel
+    return false;
+  }catch(e){ return signed; }
 }
 $("#clearSig").addEventListener("click",()=>{
-  const c=$("#sig"); sigCtx.clearRect(0,0,c.width,c.height); signed=false; $("#sighint").style.display="grid";
+  const c=$("#sig"); if(sigCtx) sigCtx.clearRect(0,0,c.width,c.height); signed=false; $("#sighint").style.display="grid";
 });
 
 /* ---------------- Multi-image capture (with compression) ---------------- */
@@ -502,7 +608,7 @@ $("#recBtn").addEventListener("click",async()=>{
   }
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    chunks=[]; mediaRec=new MediaRecorder(stream);
+    chunks=[]; mediaRec=new MediaRecorder(stream,{audioBitsPerSecond:16000});
     voiceMime=mediaRec.mimeType||"audio/webm";
     mediaRec.ondataavailable=e=>{ if(e.data.size) chunks.push(e.data); };
     mediaRec.onstop=()=>{
@@ -564,6 +670,8 @@ function showApp(){
     : "";
   const so=$("#signout"); if(so) so.addEventListener("click",signOut);
   goTo("form");
+  // Canvas is now visible — size it after layout settles (double rAF).
+  requestAnimationFrame(()=>requestAnimationFrame(fitSig));
 }
 async function signOut(){
   auth=null; await Store.clearAuth(); $("#passcode").value=""; showLogin("Signed out.");
@@ -574,7 +682,7 @@ $("#loginBtn").addEventListener("click",async()=>{
   if(!code){ $("#loginMsg").textContent="Enter your passcode."; return; }
   $("#loginMsg").textContent="Verifying…";
   if(DEMO_MODE){   // preview has no backend — accept any code so the flow is demoable
-    auth={token:"demo."+code, name:"Demo Engineer ("+code+")"};
+    auth={token:"demo."+code, name:"Demo Engineer"};
     await Store.setAuth(auth); showApp(); return;
   }
   if(!navigator.onLine){ $("#loginMsg").style.color="var(--offline)";
@@ -594,19 +702,48 @@ $("#submitBtn").addEventListener("click",async()=>{
   if(!auth){ showLogin("Please sign in first."); return; }
   const reg=$("#reg").value.trim();
   if(!reg){alert("Please select an aircraft registration.");return;}
+  // Airworthiness determination is required; an unserviceable call needs a reason.
+  if(!airworthy){ alert("Please mark the aircraft Serviceable or Unserviceable."); return; }
+  const awReason=$("#awReason").value.trim();
+  if(airworthy==="Unserviceable" && !awReason){
+    alert("Please state the reason the aircraft is unserviceable."); return;
+  }
+  // Require a real signature — checks for actual ink, not just the tap flag.
+  const hasInk = signed && sigHasInk();
+  if(!hasInk){ alert("Please sign in the signature box before submitting."); return; }
+  // Flatten the signature onto a white background so it's legible on any viewer
+  // (a transparent PNG vanishes on dark backgrounds like a phone gallery).
+  const sigC=$("#sig");
+  const flat=document.createElement("canvas"); flat.width=sigC.width; flat.height=sigC.height;
+  const fctx=flat.getContext("2d");
+  fctx.fillStyle="#ffffff"; fctx.fillRect(0,0,flat.width,flat.height);
+  fctx.drawImage(sigC,0,0);
+  const signaturePng=flat.toDataURL("image/png");
   const items=[];
   CHECKLIST.forEach((sec,si)=>sec[1].forEach((desc,ii)=>items.push({
     section:sec[0], item:desc,
-    eng:!!marks[`${si}-${ii}-eng`], tech:!!marks[`${si}-${ii}-tech`]
+    eng:!!marks[`${si}-${ii}-eng`], tech:!!marks[`${si}-${ii}-tech`],
+    comment:comments[`${si}-${ii}`]||""
   })));
   const rec={
     id:uuid(), status:"pending", createdAt:new Date().toISOString(),
+    checkType, airworthy, unserviceableReason:(airworthy==="Unserviceable"?awReason:""),
     registration:reg, tsn:$("#tsn").value.trim(), date:$("#date").value,
     engineer:auth.name, authToken:auth.token,
     remarks:$("#remarks").value.trim(),
-    signature:signed?$("#sig").toDataURL("image/png"):null,
+    signature:signaturePng,
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
+
+  // Safety net: Vercel rejects request bodies over ~4.5MB with an unhelpful raw error.
+  // Catch it here first with a clear, actionable message instead of a silent sync failure later.
+  const approxBytes = new Blob([JSON.stringify(rec)]).size;
+  const SAFE_LIMIT = 3.8 * 1024 * 1024; // stay comfortably under the 4.5MB platform ceiling
+  if(approxBytes > SAFE_LIMIT){
+    alert(`This submission is too large to send (${(approxBytes/1024/1024).toFixed(1)}MB).\n\nRemove a photo or shorten/re-record the voice note, then try again.`);
+    return;
+  }
+
   await Store.save(rec);
   await refreshOutbox();
   resetForm();
@@ -618,6 +755,7 @@ $("#submitBtn").addEventListener("click",async()=>{
 let syncing=false;
 async function attemptSync(){
   if(syncing) return; syncing=true;
+  let lastError=null;
   try{
     const recs=(await Store.all()).filter(r=>r.status==="pending");
     if(online()){
@@ -636,12 +774,24 @@ async function attemptSync(){
               showLogin("Your sign-in is no longer valid. Please sign in again.");
               return;
             }
-          }catch(e){ ok=false; }
+            if(!ok){
+              // Surface WHY it failed instead of silently retrying forever.
+              const data=await resp.json().catch(()=>({}));
+              lastError=data.detail || data.error || ("Server error "+resp.status);
+            }
+          }catch(e){ ok=false; lastError="Couldn't reach the server. Check your connection."; }
         }
         if(ok){ r.status="synced"; r.syncedAt=new Date().toISOString(); await Store.save(r); await refreshOutbox(); }
       }
     }
-  } finally { syncing=false; updateBadges(); }
+  } finally {
+    syncing=false; updateBadges();
+    const banner=$("#syncError");
+    if(banner){
+      if(lastError){ banner.style.display="block"; banner.textContent="Submission couldn't be sent: "+lastError; }
+      else banner.style.display="none";
+    }
+  }
 }
 $("#syncBtn").addEventListener("click",attemptSync);
 
@@ -656,21 +806,35 @@ async function refreshOutbox(){
       const sc=r.status==="synced"?"s-synced":"s-pending";
       const lbl=r.status==="synced"?"Synced ✓":"Pending ↑";
       const nImg=(r.images||[]).length;
+      const nNotes=(r.items||[]).filter(i=>i.comment).length;
       const extras=[
         r.signature?"signed":"unsigned",
-        nImg?`${nImg} photo${nImg>1?"s":""}`:"no photos",
-        r.voice?"voice ✓":null,
-        r.remarks?"remark ✓":null
+        nImg?`${nImg} photo${nImg>1?"s":""}`:null,
+        nNotes?`${nNotes} note${nNotes>1?"s":""}`:null,
+        r.voice?"voice ✓":null
       ].filter(Boolean).join(" · ");
+      const awTag = r.airworthy==="Serviceable"
+        ? `<span style="color:var(--synced);font-weight:700">✔ Serviceable</span>`
+        : r.airworthy==="Unserviceable"
+        ? `<span style="color:var(--offline);font-weight:700">✕ Unserviceable</span>` : "";
       return `<div class="rec"><div class="top">
         <span class="reg">${r.registration||"—"}</span>
         <span class="status ${sc}">${lbl}</span></div>
+        <div class="meta">${r.checkType||"—"} · ${awTag||"no status"}</div>
         <div class="meta">${r.date||"no date"} · ${r.engineer||"—"} · ${checked}/${r.items.length} items · ${extras}</div>
         <div class="meta">ID ${r.id.slice(0,13)}… · saved ${new Date(r.createdAt).toLocaleString()}</div>
-        <button class="dlbtn" data-dl="${r.id}">⬇ Download copy</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="dlbtn" data-dl="${r.id}">⬇ Download copy</button>
+          ${r.status==="pending"?`<button class="dlbtn" data-del="${r.id}" style="color:var(--offline);border-color:var(--offline)">✕ Delete (stuck submission)</button>`:""}
+        </div>
       </div>`;
     }).join("");
     list.querySelectorAll("[data-dl]").forEach(b=>b.addEventListener("click",()=>downloadRecord(b.dataset.dl)));
+    list.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",async()=>{
+      if(confirm("Delete this submission from the device? Download a copy first if you need the record.")){
+        await Store.remove(b.dataset.del); await refreshOutbox();
+      }
+    }));
   }
   updateBadges();
 }
@@ -679,16 +843,19 @@ async function refreshOutbox(){
 async function downloadRecord(id){
   const rec=(await Store.all()).find(r=>r.id===id); if(!rec) return;
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  const rows=rec.items.map(i=>`<tr><td>${esc(i.item)}</td><td style="text-align:center">${i.eng?"✓":""}</td><td style="text-align:center">${i.tech?"✓":""}</td></tr>`).join("");
+  const rows=rec.items.map(i=>`<tr><td>${esc(i.item)}${i.comment?`<br><span style="color:#555;font-size:12px">↳ ${esc(i.comment)}</span>`:""}</td><td style="text-align:center">${i.eng?"✓":""}</td><td style="text-align:center">${i.tech?"✓":""}</td></tr>`).join("");
   const imgs=(rec.images||[]).map(src=>`<img src="${src}" style="max-width:100%;border:1px solid #ccc;border-radius:8px;margin:6px 0">`).join("");
-  const remarks=rec.remarks?`<div style="border-left:4px solid #C9A84C;background:#FAF6EC;padding:10px 14px;margin:12px 0"><b>Remarks:</b><br>${esc(rec.remarks).replace(/\n/g,"<br>")}</div>`:"";
+  const remarks=rec.remarks?`<div style="border-left:4px solid #C9A84C;background:#FAF6EC;padding:10px 14px;margin:12px 0"><b>General Remarks:</b><br>${esc(rec.remarks).replace(/\n/g,"<br>")}</div>`:"";
   const voice=rec.voice?`<p><b>Voice note:</b></p><audio controls src="${rec.voice}" style="width:100%"></audio>`:"";
   const sig=rec.signature?`<p><b>Signature:</b></p><img src="${rec.signature}" style="border:1px solid #ccc;border-radius:8px;max-width:320px">`:"";
-  const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Pre-flight ${esc(rec.registration)} ${esc(rec.date)}</title></head>
+  const awColor=rec.airworthy==="Serviceable"?"#2E8B6F":"#B23A48";
+  const awBanner=rec.airworthy?`<div style="background:${awColor};color:#fff;padding:10px 14px;border-radius:8px;font-weight:700;margin:12px 0">${esc(rec.airworthy)}${rec.unserviceableReason?` — ${esc(rec.unserviceableReason)}`:""}</div>`:"";
+  const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(rec.checkType||"Inspection")} ${esc(rec.registration)} ${esc(rec.date)}</title></head>
   <body style="font-family:Arial,sans-serif;color:#0d1526;max-width:760px;margin:20px auto;padding:0 14px">
-  <h2 style="color:#071A5A">Gulfstream Pre-flight Checklist</h2>
+  <h2 style="color:#071A5A">Gulfstream ${esc(rec.checkType||"Pre-flight")} Checklist</h2>
   <p><b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN/CSN:</b> ${esc(rec.tsn)} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
   <p><b>Engineer:</b> ${esc(rec.engineer)} &nbsp; <b>ID:</b> ${esc(rec.id)}</p>
+  ${awBanner}
   <table style="border-collapse:collapse;width:100%;font-size:13px" border="1" cellpadding="5">
   <tr style="background:#071A5A;color:#fff"><th style="text-align:left">Item</th><th>ENG</th><th>TECH</th></tr>${rows}</table>
   ${remarks}${voice}${imgs?`<p><b>Photos:</b></p>${imgs}`:""}${sig}
@@ -724,11 +891,17 @@ $("#tabOut").addEventListener("click",()=>goTo("out"));
 
 /* ---------------- Reset ---------------- */
 function resetForm(){
-  ["tsn","remarks"].forEach(id=>$("#"+id).value="");
+  ["tsn","remarks","awReason"].forEach(id=>$("#"+id).value="");
   $("#reg").selectedIndex=0;
   $("#date").valueAsDate=new Date();
   Object.keys(marks).forEach(k=>delete marks[k]);
+  Object.keys(comments).forEach(k=>delete comments[k]);
   document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
+  document.querySelectorAll(".notebox").forEach(t=>{ t.value=""; t.style.display="none"; });
+  document.querySelectorAll(".notebtn").forEach(b=>{ b.textContent="＋ Add note"; b.classList.remove("has"); });
+  airworthy=null;
+  document.querySelectorAll(".awbtn").forEach(x=>x.classList.remove("on"));
+  $("#awReasonWrap").style.display="none";
   updateProgress();
   $("#clearSig").click();
   images=[]; renderThumbs();
@@ -743,8 +916,9 @@ $("#resetBtn").addEventListener("click",()=>{ if(confirm("Clear this form?")) re
     ? "Storage: on-device database — submissions survive if you close the app or lose power."
     : "Storage: in-memory (preview mode) — deploy to a real URL for permanent on-device storage.";
   $("#modeFoot").textContent = (DEMO_MODE?"DEMO MODE · sends are simulated":"LIVE · posts to "+BACKEND_URL)
-     + " · storage: " + (Store.persistent?"IndexedDB":"memory");
+     + " · storage: " + (Store.persistent?"IndexedDB":"memory") + " · " + APP_VERSION;
   renderSections();
+  document.documentElement.style.setProperty("--accent", checkColor);
   initSig();
   $("#date").valueAsDate=new Date();
   refreshConn();
