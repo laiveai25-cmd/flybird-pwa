@@ -312,7 +312,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v11"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v12"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -852,7 +852,8 @@ async function downloadRecord(id){
   const awBanner=rec.airworthy?`<div style="background:${awColor};color:#fff;padding:10px 14px;border-radius:8px;font-weight:700;margin:12px 0">${esc(rec.airworthy)}${rec.unserviceableReason?` — ${esc(rec.unserviceableReason)}`:""}</div>`:"";
   const doc=`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(rec.checkType||"Inspection")} ${esc(rec.registration)} ${esc(rec.date)}</title></head>
   <body style="font-family:Arial,sans-serif;color:#0d1526;max-width:760px;margin:20px auto;padding:0 14px">
-  <h2 style="color:#071A5A">Gulfstream ${esc(rec.checkType||"Pre-flight")} Checklist</h2>
+  <h2 style="color:#071A5A;margin-bottom:4px">Gulfstream ${esc(rec.checkType||"Pre-flight")} Checklist</h2>
+  <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${esc(rec.checkType||"Pre-flight")}</span></p>
   <p><b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN/CSN:</b> ${esc(rec.tsn)} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
   <p><b>Engineer:</b> ${esc(rec.engineer)} &nbsp; <b>ID:</b> ${esc(rec.id)}</p>
   ${awBanner}
