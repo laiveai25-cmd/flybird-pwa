@@ -172,7 +172,8 @@ export default async function handler(req, res) {
 
     const html = `
       <div style="font-family:Arial,sans-serif;color:#0d1526">
-        <h2 style="color:#071A5A">Gulfstream ${escape(r.checkType || "Pre-flight")} Checklist</h2>
+        <h2 style="color:#071A5A;margin-bottom:4px">Gulfstream ${escape(r.checkType || "Pre-flight")} Checklist</h2>
+        <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${escape(r.checkType || "Pre-flight")}</span></p>
         <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN/CSN:</b> ${escape(r.tsn)} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
         <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
         ${awBanner}
