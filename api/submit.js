@@ -95,10 +95,61 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "engineer no longer approved" });
     }
 
+    // Save durably to Supabase FIRST. This is the system of record — email is
+    // just a notification on top of it. `on_conflict=id` + ignore-duplicates
+    // means a retried submission is a no-op here (idempotent) instead of a
+    // second row.
+    let isDuplicate = false;
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      try {
+        const dbResp = await fetch(
+          `${process.env.SUPABASE_URL}/rest/v1/submissions?on_conflict=id`,
+          {
+            method: "POST",
+            headers: {
+              apikey: process.env.SUPABASE_SERVICE_KEY,
+              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+              "Content-Type": "application/json",
+              Prefer: "resolution=ignore-duplicates,return=representation",
+            },
+            body: JSON.stringify({
+              id: r.id,
+              check_type: r.checkType,
+              airworthy: r.airworthy,
+              unserviceable_reason: r.unserviceableReason,
+              registration: r.registration,
+              tsn: r.tsn,
+              date: r.date,
+              engineer: name,
+              remarks: r.remarks,
+              items: r.items,
+              signature: r.signature,
+              images: r.images,
+              voice: r.voice,
+              voice_mime: r.voiceMime,
+            }),
+          }
+        );
+        const inserted = await dbResp.json().catch(() => []);
+        // Empty array back = the row already existed (ignore-duplicates fired) = this is a retry.
+        isDuplicate = Array.isArray(inserted) && inserted.length === 0;
+      } catch (e) {
+        // Storage being unreachable should not block the email — log and continue.
+        console.error("Supabase insert failed:", e);
+      }
+    }
+    if (isDuplicate) {
+      return res.status(200).json({ ok: true, id: r.id, duplicate: true });
+    }
+
     const rows = (r.items || [])
       .map(
         (i) =>
-          `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}</td>
+          `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}${
+            i.comment
+              ? `<br><span style="color:#666;font-size:12px">&#8627; ${escape(i.comment)}</span>`
+              : ""
+          }</td>
            <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "\u2713" : ""}</td>
            <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "\u2713" : ""}</td></tr>`
       )
@@ -106,16 +157,25 @@ export default async function handler(req, res) {
 
     const remarksHtml = r.remarks
       ? `<div style="margin:14px 0;padding:12px 14px;border-left:4px solid #C9A84C;background:#FAF6EC">
-           <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">Remarks & Notes</div>
+           <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">General Remarks & Notes</div>
            <div style="white-space:pre-wrap;font-size:13px">${escape(r.remarks)}</div>
+         </div>`
+      : "";
+
+    // Airworthiness banner — green for serviceable, red for unserviceable (with reason).
+    const awColor = r.airworthy === "Serviceable" ? "#2E8B6F" : "#B23A48";
+    const awBanner = r.airworthy
+      ? `<div style="background:${awColor};color:#fff;padding:12px 16px;border-radius:8px;font-weight:700;font-size:15px;margin:12px 0">
+           ${escape(r.airworthy)}${r.unserviceableReason ? ` &mdash; ${escape(r.unserviceableReason)}` : ""}
          </div>`
       : "";
 
     const html = `
       <div style="font-family:Arial,sans-serif;color:#0d1526">
-        <h2 style="color:#071A5A">Gulfstream Pre-flight Checklist</h2>
+        <h2 style="color:#071A5A">Gulfstream ${escape(r.checkType || "Pre-flight")} Checklist</h2>
         <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN/CSN:</b> ${escape(r.tsn)} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
         <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
+        ${awBanner}
         <table style="border-collapse:collapse;width:100%;font-size:13px">
           <tr><th style="text-align:left;padding:4px 8px;background:#071A5A;color:#fff">Item</th>
               <th style="background:#071A5A;color:#fff">ENG</th><th style="background:#071A5A;color:#fff">TECH</th></tr>
@@ -125,16 +185,31 @@ export default async function handler(req, res) {
         <p style="margin-top:14px;color:#5a6577;font-size:12px">${attachSummary(r)}</p>
       </div>`;
 
+    // Build attachments defensively. A data URL looks like "data:<mime>;base64,<DATA>".
+    // If DATA is missing/empty (malformed capture), skip that attachment rather than
+    // letting Resend reject the entire email with "invalid_attachment".
+    const b64 = (dataUrl) => {
+      if (typeof dataUrl !== "string") return null;
+      const comma = dataUrl.indexOf(",");
+      if (comma === -1) return null;
+      const data = dataUrl.slice(comma + 1).trim();
+      return data.length ? data : null;
+    };
+
     const attachments = [];
-    if (r.signature) attachments.push({ filename: "signature.png", content: r.signature.split(",")[1] });
+    const sig = b64(r.signature);
+    if (sig) attachments.push({ filename: "signature.png", content: sig });
     (r.images || []).forEach((img, idx) => {
+      const content = b64(img);
+      if (!content) return;
       const ext = (img.split(";")[0].split("/")[1] || "jpg");
-      attachments.push({ filename: `photo-${idx + 1}.${ext}`, content: img.split(",")[1] });
+      attachments.push({ filename: `photo-${idx + 1}.${ext}`, content });
     });
-    if (r.voice) {
-      const raw = (r.voiceMime || r.voice.split(";")[0].split(":")[1] || "audio/webm");
+    const voice = b64(r.voice);
+    if (voice) {
+      const raw = (r.voiceMime || (r.voice.split(";")[0].split(":")[1]) || "audio/webm");
       const ext = raw.includes("mp4") || raw.includes("m4a") ? "m4a" : raw.includes("ogg") ? "ogg" : "webm";
-      attachments.push({ filename: `voice-note.${ext}`, content: r.voice.split(",")[1] });
+      attachments.push({ filename: `voice-note.${ext}`, content: voice });
     }
 
     const resp = await fetch("https://api.resend.com/emails", {
@@ -146,7 +221,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: "Flybird Inspections <onboarding@resend.dev>",
         to: [process.env.RECIPIENT_EMAIL],
-        subject: `Pre-flight Checklist — ${r.registration || "aircraft"} — ${r.date || ""}`,
+        subject: `${r.checkType || "Pre-flight"} — ${r.registration || "aircraft"} — ${r.date || ""}${r.airworthy ? " — " + r.airworthy.toUpperCase() : ""}`,
         html,
         attachments,
       }),
@@ -154,8 +229,24 @@ export default async function handler(req, res) {
 
     if (!resp.ok) {
       const detail = await resp.text();
-      return res.status(502).json({ error: "email failed", detail });
+      // The record is already safely stored above — a failed email does NOT lose the
+      // inspection. It just means this one needs a resend once the config is fixed.
+      return res.status(422).json({ error: "email failed", detail });
     }
+
+    // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      fetch(`${process.env.SUPABASE_URL}/rest/v1/submissions?id=eq.${r.id}`, {
+        method: "PATCH",
+        headers: {
+          apikey: process.env.SUPABASE_SERVICE_KEY,
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ emailed_at: new Date().toISOString() }),
+      }).catch(() => {});
+    }
+
     return res.status(200).json({ ok: true, id: r.id, engineer: name });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
