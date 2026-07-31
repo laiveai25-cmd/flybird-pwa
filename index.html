@@ -153,6 +153,11 @@
   .status{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:700;
     padding:4px 9px;border-radius:999px}
   .s-pending{background:rgba(201,135,58,.15);color:var(--pending)}
+  .s-sending{background:rgba(201,135,58,.18);color:var(--pending)}
+  .spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(201,135,58,.35);
+    border-top-color:var(--pending);border-radius:50%;animation:spin .7s linear infinite;
+    vertical-align:-1px;margin-right:3px}
+  @keyframes spin{to{transform:rotate(360deg)}}
   .s-synced{background:rgba(46,139,111,.15);color:var(--synced)}
   .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
   .empty{text-align:center;color:var(--muted);font-size:13px;padding:26px 10px}
@@ -312,7 +317,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v12"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v13"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -753,6 +758,7 @@ $("#submitBtn").addEventListener("click",async()=>{
 
 /* ---------------- Sync engine (store-and-forward) ---------------- */
 let syncing=false;
+let sendingId=null;   // id of the record currently being transmitted (for the spinner)
 async function attemptSync(){
   if(syncing) return; syncing=true;
   let lastError=null;
@@ -761,7 +767,8 @@ async function attemptSync(){
     if(online()){
       for(const r of recs){
         let ok=false;
-        if(DEMO_MODE){ await new Promise(res=>setTimeout(res,700)); ok=true; }
+        sendingId=r.id; await refreshOutbox();   // show the spinner on this record
+        if(DEMO_MODE){ await new Promise(res=>setTimeout(res,900)); ok=true; }
         else{
           try{
             const resp=await fetch(BACKEND_URL,{method:"POST",
@@ -770,7 +777,7 @@ async function attemptSync(){
             ok=resp.ok;
             if(resp.status===401||resp.status===403){
               // token invalid or engineer revoked — stop, force re-login
-              auth=null; await Store.clearAuth();
+              sendingId=null; auth=null; await Store.clearAuth();
               showLogin("Your sign-in is no longer valid. Please sign in again.");
               return;
             }
@@ -781,11 +788,13 @@ async function attemptSync(){
             }
           }catch(e){ ok=false; lastError="Couldn't reach the server. Check your connection."; }
         }
-        if(ok){ r.status="synced"; r.syncedAt=new Date().toISOString(); await Store.save(r); await refreshOutbox(); }
+        sendingId=null;
+        if(ok){ r.status="synced"; r.syncedAt=new Date().toISOString(); await Store.save(r); }
+        await refreshOutbox();
       }
     }
   } finally {
-    syncing=false; updateBadges();
+    syncing=false; sendingId=null; updateBadges();
     const banner=$("#syncError");
     if(banner){
       if(lastError){ banner.style.display="block"; banner.textContent="Submission couldn't be sent: "+lastError; }
@@ -803,8 +812,9 @@ async function refreshOutbox(){
   else{
     list.innerHTML=recs.map(r=>{
       const checked=r.items.filter(i=>i.eng||i.tech).length;
-      const sc=r.status==="synced"?"s-synced":"s-pending";
-      const lbl=r.status==="synced"?"Synced ✓":"Pending ↑";
+      const sending=(r.id===sendingId && r.status==="pending");
+      const sc=r.status==="synced"?"s-synced":sending?"s-sending":"s-pending";
+      const lbl=r.status==="synced"?"Synced ✓":sending?`<span class="spin"></span>Sending…`:"Pending ↑";
       const nImg=(r.images||[]).length;
       const nNotes=(r.items||[]).filter(i=>i.comment).length;
       const extras=[
