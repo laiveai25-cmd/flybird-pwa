@@ -95,44 +95,49 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "engineer no longer approved" });
     }
 
-    // Save durably to Supabase FIRST. This is the system of record — email is
-    // just a notification on top of it. `on_conflict=id` + ignore-duplicates
-    // means a retried submission is a no-op here (idempotent) instead of a
-    // second row.
+    // Save durably to Supabase FIRST. This is the system of record — email is just a
+    // notification on top of it. A plain insert; a primary-key conflict (409) means the
+    // record is already stored, so we treat that as an idempotent no-op.
     let isDuplicate = false;
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      // Normalise the base: drop trailing slash and any accidental /rest or /rest/v1 suffix.
+      const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
       try {
-        const dbResp = await fetch(
-          `${process.env.SUPABASE_URL}/rest/v1/submissions?on_conflict=id`,
-          {
-            method: "POST",
-            headers: {
-              apikey: process.env.SUPABASE_SERVICE_KEY,
-              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-              "Content-Type": "application/json",
-              Prefer: "resolution=ignore-duplicates,return=representation",
-            },
-            body: JSON.stringify({
-              id: r.id,
-              registration: r.registration,
-              tsn: r.tsn,
-              date: r.date,
-              engineer: name,
-              remarks: r.remarks,
-              items: r.items,
-              signature: r.signature,
-              images: r.images,
-              voice: r.voice,
-              voice_mime: r.voiceMime,
-            }),
-          }
-        );
-        const inserted = await dbResp.json().catch(() => []);
-        // Empty array back = the row already existed (ignore-duplicates fired) = this is a retry.
-        isDuplicate = Array.isArray(inserted) && inserted.length === 0;
+        const dbResp = await fetch(`${base}/rest/v1/submissions`, {
+          method: "POST",
+          headers: {
+            apikey: process.env.SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            id: r.id,
+            check_type: r.checkType,
+            airworthy: r.airworthy,
+            unserviceable_reason: r.unserviceableReason,
+            registration: r.registration,
+            tsn: r.tsn,
+            date: r.date,
+            engineer: name,
+            remarks: r.remarks,
+            items: r.items,
+            signature: r.signature,
+            images: r.images,
+            voice: r.voice,
+            voice_mime: r.voiceMime,
+          }),
+        });
+        if (dbResp.status === 409) {
+          isDuplicate = true; // primary-key conflict = already stored (idempotent)
+        } else if (!dbResp.ok) {
+          // DB rejected the write — log it, but DO NOT skip the email.
+          const detail = await dbResp.text().catch(() => "");
+          console.error("Supabase insert failed:", dbResp.status, detail);
+        }
       } catch (e) {
         // Storage being unreachable should not block the email — log and continue.
-        console.error("Supabase insert failed:", e);
+        console.error("Supabase insert error:", e);
       }
     }
     if (isDuplicate) {
@@ -142,7 +147,11 @@ export default async function handler(req, res) {
     const rows = (r.items || [])
       .map(
         (i) =>
-          `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}</td>
+          `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}${
+            i.comment
+              ? `<br><span style="color:#666;font-size:12px">&#8627; ${escape(i.comment)}</span>`
+              : ""
+          }</td>
            <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "\u2713" : ""}</td>
            <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "\u2713" : ""}</td></tr>`
       )
@@ -150,16 +159,26 @@ export default async function handler(req, res) {
 
     const remarksHtml = r.remarks
       ? `<div style="margin:14px 0;padding:12px 14px;border-left:4px solid #C9A84C;background:#FAF6EC">
-           <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">Remarks & Notes</div>
+           <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">General Remarks & Notes</div>
            <div style="white-space:pre-wrap;font-size:13px">${escape(r.remarks)}</div>
+         </div>`
+      : "";
+
+    // Airworthiness banner — green for serviceable, red for unserviceable (with reason).
+    const awColor = r.airworthy === "Serviceable" ? "#2E8B6F" : "#B23A48";
+    const awBanner = r.airworthy
+      ? `<div style="background:${awColor};color:#fff;padding:12px 16px;border-radius:8px;font-weight:700;font-size:15px;margin:12px 0">
+           ${escape(r.airworthy)}${r.unserviceableReason ? ` &mdash; ${escape(r.unserviceableReason)}` : ""}
          </div>`
       : "";
 
     const html = `
       <div style="font-family:Arial,sans-serif;color:#0d1526">
-        <h2 style="color:#071A5A">Gulfstream Pre-flight Checklist</h2>
+        <h2 style="color:#071A5A;margin-bottom:4px">Gulfstream ${escape(r.checkType || "Pre-flight")} Checklist</h2>
+        <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${escape(r.checkType || "Pre-flight")}</span></p>
         <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN/CSN:</b> ${escape(r.tsn)} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
         <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
+        ${awBanner}
         <table style="border-collapse:collapse;width:100%;font-size:13px">
           <tr><th style="text-align:left;padding:4px 8px;background:#071A5A;color:#fff">Item</th>
               <th style="background:#071A5A;color:#fff">ENG</th><th style="background:#071A5A;color:#fff">TECH</th></tr>
@@ -205,7 +224,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: "Flybird Inspections <onboarding@resend.dev>",
         to: [process.env.RECIPIENT_EMAIL],
-        subject: `Pre-flight Checklist — ${r.registration || "aircraft"} — ${r.date || ""}`,
+        subject: `${r.checkType || "Pre-flight"} — ${r.registration || "aircraft"} — ${r.date || ""}${r.airworthy ? " — " + r.airworthy.toUpperCase() : ""}`,
         html,
         attachments,
       }),
@@ -220,7 +239,8 @@ export default async function handler(req, res) {
 
     // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-      fetch(`${process.env.SUPABASE_URL}/rest/v1/submissions?id=eq.${r.id}`, {
+      const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
+      fetch(`${base}/rest/v1/submissions?id=eq.${r.id}`, {
         method: "PATCH",
         headers: {
           apikey: process.env.SUPABASE_SERVICE_KEY,
