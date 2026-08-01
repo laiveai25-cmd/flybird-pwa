@@ -154,9 +154,9 @@
     padding:4px 9px;border-radius:999px}
   .s-pending{background:rgba(201,135,58,.15);color:var(--pending)}
   .s-sending{background:rgba(201,135,58,.18);color:var(--pending)}
-  .spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(201,135,58,.35);
-    border-top-color:var(--pending);border-radius:50%;animation:spin .7s linear infinite;
-    vertical-align:-1px;margin-right:3px}
+  .spin{display:inline-block;width:13px;height:13px;border:2.5px solid rgba(201,135,58,.30);
+    border-top-color:var(--pending);border-radius:50%;animation:spin .65s linear infinite;
+    vertical-align:-2px;margin-right:5px}
   @keyframes spin{to{transform:rotate(360deg)}}
   .s-synced{background:rgba(46,139,111,.15);color:var(--synced)}
   .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:6px}
@@ -317,7 +317,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v13"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v14"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -768,6 +768,8 @@ async function attemptSync(){
       for(const r of recs){
         let ok=false;
         sendingId=r.id; await refreshOutbox();   // show the spinner on this record
+        await new Promise(res=>setTimeout(res,60)); // let it paint before the request
+        const shownAt=Date.now();
         if(DEMO_MODE){ await new Promise(res=>setTimeout(res,900)); ok=true; }
         else{
           try{
@@ -788,6 +790,9 @@ async function attemptSync(){
             }
           }catch(e){ ok=false; lastError="Couldn't reach the server. Check your connection."; }
         }
+        // Keep the spinner on screen for a clear minimum so it never just blinks past.
+        const shownFor=Date.now()-shownAt;
+        if(shownFor<800) await new Promise(res=>setTimeout(res,800-shownFor));
         sendingId=null;
         if(ok){ r.status="synced"; r.syncedAt=new Date().toISOString(); await Store.save(r); }
         await refreshOutbox();
