@@ -95,47 +95,43 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "engineer no longer approved" });
     }
 
-    // Save durably to Supabase FIRST. This is the system of record — email is
-    // just a notification on top of it. `on_conflict=id` + ignore-duplicates
-    // means a retried submission is a no-op here (idempotent) instead of a
-    // second row.
+    // Save durably to Supabase FIRST. This is the system of record — email is just a
+    // notification on top of it. A plain insert; a primary-key conflict (409) means the
+    // record is already stored, so we treat that as an idempotent no-op.
     let isDuplicate = false;
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      // Normalise the base: drop trailing slash and any accidental /rest or /rest/v1 suffix.
+      const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
       try {
-        const dbResp = await fetch(
-          `${(process.env.SUPABASE_URL||"").replace(/\/+$/,"")}/rest/v1/submissions?on_conflict=id`,
-          {
-            method: "POST",
-            headers: {
-              apikey: process.env.SUPABASE_SERVICE_KEY,
-              Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-              "Content-Type": "application/json",
-              Prefer: "resolution=ignore-duplicates,return=representation",
-            },
-            body: JSON.stringify({
-              id: r.id,
-              check_type: r.checkType,
-              airworthy: r.airworthy,
-              unserviceable_reason: r.unserviceableReason,
-              registration: r.registration,
-              tsn: r.tsn,
-              date: r.date,
-              engineer: name,
-              remarks: r.remarks,
-              items: r.items,
-              signature: r.signature,
-              images: r.images,
-              voice: r.voice,
-              voice_mime: r.voiceMime,
-            }),
-          }
-        );
-        if (dbResp.ok) {
-          const inserted = await dbResp.json().catch(() => null);
-          // Genuine duplicate ONLY when the DB accepted the request and returned an empty set.
-          if (Array.isArray(inserted) && inserted.length === 0) isDuplicate = true;
-        } else {
-          // DB rejected the write (bad key, RLS, etc.) — log it, but DO NOT skip the email.
+        const dbResp = await fetch(`${base}/rest/v1/submissions`, {
+          method: "POST",
+          headers: {
+            apikey: process.env.SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({
+            id: r.id,
+            check_type: r.checkType,
+            airworthy: r.airworthy,
+            unserviceable_reason: r.unserviceableReason,
+            registration: r.registration,
+            tsn: r.tsn,
+            date: r.date,
+            engineer: name,
+            remarks: r.remarks,
+            items: r.items,
+            signature: r.signature,
+            images: r.images,
+            voice: r.voice,
+            voice_mime: r.voiceMime,
+          }),
+        });
+        if (dbResp.status === 409) {
+          isDuplicate = true; // primary-key conflict = already stored (idempotent)
+        } else if (!dbResp.ok) {
+          // DB rejected the write — log it, but DO NOT skip the email.
           const detail = await dbResp.text().catch(() => "");
           console.error("Supabase insert failed:", dbResp.status, detail);
         }
@@ -243,7 +239,8 @@ export default async function handler(req, res) {
 
     // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-      fetch(`${(process.env.SUPABASE_URL||"").replace(/\/+$/,"")}/rest/v1/submissions?id=eq.${r.id}`, {
+      const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
+      fetch(`${base}/rest/v1/submissions?id=eq.${r.id}`, {
         method: "PATCH",
         headers: {
           apikey: process.env.SUPABASE_SERVICE_KEY,
