@@ -103,7 +103,7 @@ export default async function handler(req, res) {
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
       try {
         const dbResp = await fetch(
-          `${process.env.SUPABASE_URL}/rest/v1/submissions?on_conflict=id`,
+          `${(process.env.SUPABASE_URL||"").replace(/\/+$/,"")}/rest/v1/submissions?on_conflict=id`,
           {
             method: "POST",
             headers: {
@@ -243,7 +243,7 @@ export default async function handler(req, res) {
 
     // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-      fetch(`${process.env.SUPABASE_URL}/rest/v1/submissions?id=eq.${r.id}`, {
+      fetch(`${(process.env.SUPABASE_URL||"").replace(/\/+$/,"")}/rest/v1/submissions?id=eq.${r.id}`, {
         method: "PATCH",
         headers: {
           apikey: process.env.SUPABASE_SERVICE_KEY,
