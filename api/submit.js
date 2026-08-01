@@ -130,12 +130,18 @@ export default async function handler(req, res) {
             }),
           }
         );
-        const inserted = await dbResp.json().catch(() => []);
-        // Empty array back = the row already existed (ignore-duplicates fired) = this is a retry.
-        isDuplicate = Array.isArray(inserted) && inserted.length === 0;
+        if (dbResp.ok) {
+          const inserted = await dbResp.json().catch(() => null);
+          // Genuine duplicate ONLY when the DB accepted the request and returned an empty set.
+          if (Array.isArray(inserted) && inserted.length === 0) isDuplicate = true;
+        } else {
+          // DB rejected the write (bad key, RLS, etc.) — log it, but DO NOT skip the email.
+          const detail = await dbResp.text().catch(() => "");
+          console.error("Supabase insert failed:", dbResp.status, detail);
+        }
       } catch (e) {
         // Storage being unreachable should not block the email — log and continue.
-        console.error("Supabase insert failed:", e);
+        console.error("Supabase insert error:", e);
       }
     }
     if (isDuplicate) {
