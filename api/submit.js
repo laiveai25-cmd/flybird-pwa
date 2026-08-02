@@ -129,7 +129,18 @@ export default async function handler(req, res) {
           }),
         });
         if (dbResp.status === 409) {
-          isDuplicate = true; // primary-key conflict = already stored (idempotent)
+          // Row already exists. But was it already EMAILED? If the first attempt stored the
+          // row yet the email failed, a naive skip here would mark it synced without ever
+          // sending. So only treat as a true duplicate when emailed_at is already set;
+          // otherwise fall through and (re)send. A possible duplicate email is acceptable —
+          // a silently undelivered inspection is not.
+          try {
+            const chk = await fetch(`${base}/rest/v1/submissions?id=eq.${encodeURIComponent(r.id)}&select=emailed_at`, {
+              headers: { apikey: process.env.SUPABASE_SERVICE_KEY, Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}` },
+            });
+            const arr = await chk.json().catch(() => []);
+            if (Array.isArray(arr) && arr[0] && arr[0].emailed_at) isDuplicate = true;
+          } catch (e) { /* can't confirm — fall through and send to guarantee delivery */ }
         } else if (!dbResp.ok) {
           // DB rejected the write — log it, but DO NOT skip the email.
           const detail = await dbResp.text().catch(() => "");
@@ -174,7 +185,7 @@ export default async function handler(req, res) {
 
     const html = `
       <div style="font-family:Arial,sans-serif;color:#0d1526">
-        <h2 style="color:#071A5A;margin-bottom:4px">Gulfstream ${escape(r.checkType || "Pre-flight")} Checklist</h2>
+        <h2 style="color:#071A5A;margin-bottom:4px">Flybird ${escape(r.checkType || "Pre-flight")} Checklist</h2>
         <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${escape(r.checkType || "Pre-flight")}</span></p>
         <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN/CSN:</b> ${escape(r.tsn)} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
         <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
