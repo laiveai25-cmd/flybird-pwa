@@ -1,14 +1,15 @@
 {
-  "name": "Gulfstream Pre-flight Checklist",
-  "short_name": "Pre-flight",
-  "description": "Offline-capable Gulfstream pre-flight / transit / post-flight inspection checklist.",
+  "name": "Flybird Inspections",
+  "short_name": "Flybird",
+  "description": "Offline-capable aircraft pre-flight, post-flight and daily inspection checklist.",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#071A5A",
-  "theme_color": "#071A5A",
+  "background_color": "#001155",
+  "theme_color": "#001155",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
