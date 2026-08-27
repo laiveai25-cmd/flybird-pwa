@@ -175,6 +175,12 @@
   .knob{width:18px;height:18px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:.15s}
   .switch.on .knob{left:20px}
   .foot{text-align:center;font-size:10.5px;color:var(--muted);font-family:var(--mono);padding:6px 0 4px}
+
+  /* In-app camera */
+  #camModal{position:fixed;inset:0;z-index:100;background:#000;display:flex;flex-direction:column;justify-content:center;}
+  #camVideo{width:100%;height:100%;object-fit:cover;background:#000;}
+  .cam-controls{position:absolute;bottom:0;left:0;right:0;padding:20px;display:flex;gap:10px;background:linear-gradient(to top, rgba(0,0,0,0.8), transparent);}
+  .cam-controls .btn{flex:1;}
 </style>
 </head>
 <body>
@@ -287,8 +293,7 @@
 
       <div class="stamp">
         <label class="fld" style="margin-top:8px">Photos — stamp, defects, condition (up to 6)</label>
-        <label class="stampbtn" for="imgInput">📷 Add photo(s)</label>
-        <input id="imgInput" type="file" accept="image/*" capture="environment" multiple style="display:none">
+        <button type="button" class="stampbtn" id="startCamBtn">📷 Add photo(s)</button>
         <div class="thumbs" id="thumbs"></div>
         <div class="imgcount" id="imgCount"></div>
       </div>
@@ -312,6 +317,15 @@
   </div><!-- /appWrap -->
 </main>
 
+<!-- IN-APP CAMERA MODAL -->
+<div id="camModal" style="display:none;">
+  <video id="camVideo" autoplay playsinline></video>
+  <div class="cam-controls">
+    <button type="button" class="btn ghost" id="camCloseBtn">Cancel</button>
+    <button type="button" class="btn primary" id="camCaptureBtn">Snap Photo</button>
+  </div>
+</div>
+
 <div class="bar" id="formBar">
   <button class="btn ghost" id="resetBtn">Reset</button>
   <button class="btn primary" id="submitBtn">Save & submit</button>
@@ -328,7 +342,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v16"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v17"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -833,19 +847,57 @@ function compressImage(file){
     rd.onerror=reject; rd.readAsDataURL(file);
   });
 }
-$("#imgInput").addEventListener("change",async e=>{
-  const files=[...e.target.files];
-  for(const f of files){
-    if(images.length>=MAX_IMAGES){ alert(`Maximum ${MAX_IMAGES} photos.`); break; }
-    try{
-      images.push(await compressImage(f));
-      renderThumbs();
-      scheduleAutoSave();
-      await new Promise(res=>setTimeout(res,0));
-    }catch(_){}
+
+let camStream = null;
+$("#startCamBtn").addEventListener("click", async () => {
+  if (images.length >= MAX_IMAGES) { alert(`Maximum ${MAX_IMAGES} photos.`); return; }
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+    const video = $("#camVideo");
+    video.srcObject = camStream;
+    video.onloadedmetadata = () => video.play();
+    $("#camModal").style.display = "flex";
+  } catch (err) {
+    alert("Unable to access camera. Please check permissions.");
   }
-  e.target.value="";
 });
+
+function stopCamera() {
+  if (camStream) {
+    camStream.getTracks().forEach(t => t.stop());
+    camStream = null;
+  }
+  $("#camVideo").srcObject = null;
+  $("#camModal").style.display = "none";
+}
+
+$("#camCloseBtn").addEventListener("click", stopCamera);
+
+$("#camCaptureBtn").addEventListener("click", () => {
+  if (images.length >= MAX_IMAGES) { stopCamera(); return; }
+  const video = $("#camVideo");
+  if (!video.videoWidth) return;
+
+  let w = video.videoWidth, h = video.videoHeight;
+  const scale = Math.min(1, IMG_MAX_PX / Math.max(w, h));
+  w = Math.round(w * scale); h = Math.round(h * scale);
+
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const ctx = cv.getContext("2d");
+  
+  ctx.drawImage(video, 0, 0, w, h);
+  
+  stopCamera();
+  
+  const dataUrl = cv.toDataURL("image/jpeg", IMG_QUALITY);
+  cv.width = 0; cv.height = 0;
+  
+  images.push(dataUrl);
+  renderThumbs();
+  scheduleAutoSave();
+});
+
 function renderThumbs(){
   const box=$("#thumbs");
   box.innerHTML=images.map((src,i)=>
