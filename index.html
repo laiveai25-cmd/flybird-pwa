@@ -213,6 +213,12 @@
 
   <!-- FORM VIEW -->
   <section id="viewForm">
+    <div id="draftBanner" class="banner" style="display:none;background:rgba(46,139,111,.14);border-color:var(--synced);color:var(--synced)">
+      <div style="display:flex;align-items:center;justify-space-between;gap:8px">
+        <span id="draftMsg">Restored saved draft</span>
+        <button type="button" class="link" id="discardDraftBtn" style="color:var(--offline);margin-left:auto">Discard draft</button>
+      </div>
+    </div>
     <div class="card">
       <h2 class="sec">Inspection Type</h2>
       <div class="ctypes" id="ctypes">
@@ -322,7 +328,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v15"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v16"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -394,15 +400,16 @@ const CHECKLIST = [
 
 /* ---------------- Durable storage (IndexedDB + fallback) ---------------- */
 const Store = (() => {
-  let db=null, mem=[], memAuth=null, usingIDB=false;
+  let db=null, mem=[], memAuth=null, memDrafts={}, usingIDB=false;
   function open(){
     return new Promise(res=>{
       try{
-        const r=indexedDB.open("flybird-preflight",2);
+        const r=indexedDB.open("flybird-preflight",3);
         r.onupgradeneeded=e=>{
           const d=e.target.result;
           if(!d.objectStoreNames.contains("subs")) d.createObjectStore("subs",{keyPath:"id"});
           if(!d.objectStoreNames.contains("auth")) d.createObjectStore("auth",{keyPath:"k"});
+          if(!d.objectStoreNames.contains("drafts")) d.createObjectStore("drafts",{keyPath:"key"});
         };
         r.onsuccess=e=>{db=e.target.result;usingIDB=true;res(true);};
         r.onerror=()=>res(false);
@@ -414,16 +421,64 @@ const Store = (() => {
       tx.objectStore("subs").put(rec);tx.oncomplete=()=>ok();tx.onerror=()=>no();});}
     const i=mem.findIndex(x=>x.id===rec.id); i>=0?mem[i]=rec:mem.push(rec);
   }
+  async function get(id){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("subs","readonly");
+      const g=tx.objectStore("subs").get(id); g.onsuccess=()=>ok(g.result||null); g.onerror=()=>ok(null);});}
+    return mem.find(x=>x.id===id)||null;
+  }
   async function all(){
     if(usingIDB){return new Promise(ok=>{const out=[];const tx=db.transaction("subs","readonly");
       const c=tx.objectStore("subs").openCursor();
-      c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else ok(out);};});}
+      c.onsuccess=e=>{const cur=e.target.result;if(cur){out.push(cur.value);cur.continue();}else ok(out);};
+      c.onerror=()=>ok(out);});}
     return [...mem];
+  }
+  async function allSummaries(){
+    if(usingIDB){return new Promise(ok=>{const out=[];const tx=db.transaction("subs","readonly");
+      const c=tx.objectStore("subs").openCursor();
+      c.onsuccess=e=>{const cur=e.target.result;if(cur){
+        const val=cur.value; const items=val.items||[];
+        out.push({
+          id:val.id, status:val.status, createdAt:val.createdAt, checkType:val.checkType,
+          airworthy:val.airworthy, unserviceableReason:val.unserviceableReason, registration:val.registration,
+          date:val.date, engineer:val.engineer, itemCount:items.length,
+          checkedCount:items.filter(i=>i.eng||i.tech).length, signature:!!val.signature,
+          imageCount:(val.images||[]).length, noteCount:items.filter(i=>i.comment).length, voice:!!val.voice
+        });
+        cur.continue();
+      }else ok(out);};
+      c.onerror=()=>ok(out);});}
+    return mem.map(val=>{
+      const items=val.items||[];
+      return {
+        id:val.id, status:val.status, createdAt:val.createdAt, checkType:val.checkType,
+        airworthy:val.airworthy, unserviceableReason:val.unserviceableReason, registration:val.registration,
+        date:val.date, engineer:val.engineer, itemCount:items.length,
+        checkedCount:items.filter(i=>i.eng||i.tech).length, signature:!!val.signature,
+        imageCount:(val.images||[]).length, noteCount:items.filter(i=>i.comment).length, voice:!!val.voice
+      };
+    });
   }
   async function remove(id){
     if(usingIDB){return new Promise(ok=>{const tx=db.transaction("subs","readwrite");
       tx.objectStore("subs").delete(id); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
     mem=mem.filter(x=>x.id!==id);
+  }
+  async function saveDraft(key, draftObj){
+    const record={key, ...draftObj, updatedAt:new Date().toISOString()};
+    if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("drafts","readwrite");
+      tx.objectStore("drafts").put(record);tx.oncomplete=()=>ok();tx.onerror=()=>no();});}
+    memDrafts[key]=record;
+  }
+  async function getDraft(key){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("drafts","readonly");
+      const g=tx.objectStore("drafts").get(key); g.onsuccess=()=>ok(g.result||null); g.onerror=()=>ok(null);});}
+    return memDrafts[key]||null;
+  }
+  async function clearDraft(key){
+    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("drafts","readwrite");
+      tx.objectStore("drafts").delete(key); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
+    delete memDrafts[key];
   }
   async function setAuth(obj){
     if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("auth","readwrite");
@@ -440,7 +495,11 @@ const Store = (() => {
       tx.objectStore("auth").delete("auth"); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
     memAuth=null;
   }
-  return {init:async()=>{await open();return usingIDB;}, save, all, remove, setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}};
+  return {
+    init:async()=>{await open();return usingIDB;},
+    save, get, all, allSummaries, remove, saveDraft, getDraft, clearDraft,
+    setAuth, getAuth, clearAuth, get persistent(){return usingIDB;}
+  };
 })();
 
 /* ---------------- App state ---------------- */
@@ -463,6 +522,172 @@ const VOICE_MAX_SEC = 60;   // voice note hard cap
 const $=s=>document.querySelector(s);
 function uuid(){return (crypto.randomUUID&&crypto.randomUUID())||("id-"+Date.now()+"-"+Math.random().toString(16).slice(2));}
 function online(){return navigator.onLine && !forceOffline;}
+
+/* ---------------- Real-Time Auto-Save Engine (Aircraft-Partitioned Drafts) ---------------- */
+let currentReg = "";
+let autoSaveTimer = null;
+let isRestoringDraft = false;
+
+function activeDraftKey(regVal) {
+  const r = (regVal !== undefined ? regVal : ($("#reg") ? $("#reg").value : "")).trim();
+  return r ? `draft_${r}` : "draft_unassigned";
+}
+
+function getFormDraftPayload() {
+  const sigC = $("#sig");
+  let sigPng = null;
+  if (signed && sigHasInk()) {
+    try {
+      const flat = document.createElement("canvas");
+      flat.width = sigC.width; flat.height = sigC.height;
+      const fctx = flat.getContext("2d");
+      fctx.fillStyle = "#ffffff"; fctx.fillRect(0, 0, flat.width, flat.height);
+      fctx.drawImage(sigC, 0, 0);
+      sigPng = flat.toDataURL("image/png");
+      flat.width = 0; flat.height = 0;
+    } catch (_) {}
+  }
+  return {
+    registration: $("#reg") ? $("#reg").value : "",
+    tsn: $("#tsn") ? $("#tsn").value.trim() : "",
+    date: $("#date") ? $("#date").value : "",
+    remarks: $("#remarks") ? $("#remarks").value.trim() : "",
+    awReason: $("#awReason") ? $("#awReason").value.trim() : "",
+    checkType, checkColor, airworthy,
+    marks: { ...marks },
+    comments: { ...comments },
+    images: [...images],
+    voiceData, voiceMime,
+    signed: signed && sigHasInk(),
+    signature: sigPng
+  };
+}
+
+async function saveCurrentDraft() {
+  if (isRestoringDraft) return;
+  const payload = getFormDraftPayload();
+  const isBlank = !payload.registration && !payload.tsn && !payload.remarks && !payload.awReason && !payload.airworthy &&
+                  !Object.keys(payload.marks).length && !Object.keys(payload.comments).length &&
+                  !payload.images.length && !payload.voiceData && !payload.signature;
+  const key = activeDraftKey();
+  if (isBlank) {
+    await Store.clearDraft(key);
+    const db = $("#draftBanner"); if (db) db.style.display = "none";
+    return;
+  }
+  await Store.saveDraft(key, payload);
+}
+
+function scheduleAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveCurrentDraft, 500);
+}
+
+async function restoreFormFromDraft(d) {
+  if (!d) return false;
+  isRestoringDraft = true;
+  try {
+    if (d.checkType) {
+      const b = document.querySelector(`.ctype[data-ct="${d.checkType}"]`);
+      if (b) applyCheckType(b);
+    }
+    if (d.registration !== undefined && $("#reg")) $("#reg").value = d.registration;
+    currentReg = $("#reg") ? $("#reg").value.trim() : "";
+    if (d.tsn !== undefined && $("#tsn")) $("#tsn").value = d.tsn;
+    if (d.date !== undefined && $("#date")) $("#date").value = d.date;
+    if (d.remarks !== undefined && $("#remarks")) $("#remarks").value = d.remarks;
+    if (d.awReason !== undefined && $("#awReason")) $("#awReason").value = d.awReason;
+
+    if (d.airworthy) {
+      airworthy = d.airworthy;
+      document.querySelectorAll(".awbtn").forEach(x => {
+        const on = (x.dataset.aw === airworthy);
+        x.classList.toggle("on", on);
+      });
+      const awWrap = $("#awReasonWrap");
+      if (awWrap) awWrap.style.display = (airworthy === "Unserviceable") ? "block" : "none";
+    }
+
+    Object.keys(marks).forEach(k => delete marks[k]);
+    if (d.marks) Object.assign(marks, d.marks);
+    document.querySelectorAll(".chip").forEach(c => {
+      const k = c.dataset.k;
+      c.classList.toggle("on", !!marks[k]);
+    });
+
+    Object.keys(comments).forEach(k => delete comments[k]);
+    if (d.comments) Object.assign(comments, d.comments);
+    document.querySelectorAll(".notebox").forEach(t => {
+      const key = t.dataset.nb;
+      t.value = comments[key] || "";
+      t.style.display = comments[key] ? "block" : "none";
+      const btn = document.querySelector(`.notebtn[data-note="${key}"]`);
+      if (btn) {
+        btn.textContent = comments[key] ? "✎ Edit note" : "＋ Add note";
+        btn.classList.toggle("has", !!comments[key]);
+      }
+    });
+
+    updateProgress();
+
+    images = Array.isArray(d.images) ? [...d.images] : [];
+    renderThumbs();
+
+    voiceData = d.voiceData || null;
+    voiceMime = d.voiceMime || null;
+    const vp = $("#voicePlay");
+    if (vp) {
+      if (voiceData) {
+        vp.src = voiceData; vp.style.display = "block"; $("#recClear").style.display = "inline";
+      } else {
+        vp.src = ""; vp.style.display = "none"; $("#recClear").style.display = "none";
+      }
+    }
+
+    $("#clearSig").click();
+    if (d.signature) {
+      const img = new Image();
+      img.onload = () => {
+        const c = $("#sig");
+        if (sigCtx && c.width && c.height) {
+          sigCtx.drawImage(img, 0, 0, c.width / devicePixelRatio, c.height / devicePixelRatio);
+          signed = true; $("#sighint").style.display = "none";
+        }
+      };
+      img.src = d.signature;
+    }
+
+    const banner = $("#draftBanner");
+    const msg = $("#draftMsg");
+    if (banner && msg) {
+      const timeStr = d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+      msg.textContent = `Restored saved draft${d.registration ? ' for ' + d.registration : ''}${timeStr ? ' (' + timeStr + ')' : ''}`;
+      banner.style.display = "block";
+    }
+    return true;
+  } finally {
+    isRestoringDraft = false;
+  }
+}
+
+async function handleAircraftChange() {
+  const newReg = $("#reg").value.trim();
+  await saveCurrentDraft();
+
+  currentReg = newReg;
+  const newKey = activeDraftKey(newReg);
+  const existing = await Store.getDraft(newKey);
+
+  if (existing) {
+    await restoreFormFromDraft(existing);
+  } else {
+    const regVal = $("#reg").value;
+    resetForm(false);
+    $("#reg").value = regVal;
+    currentReg = regVal.trim();
+    const db = $("#draftBanner"); if (db) db.style.display = "none";
+  }
+}
 
 /* ---------------- Render checklist ---------------- */
 function renderSections(){
@@ -494,7 +719,7 @@ function renderSections(){
   });
   wrap.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{
     const k=c.dataset.k; marks[k]=!marks[k]; c.classList.toggle("on",marks[k]);
-    updateProgress();
+    updateProgress(); scheduleAutoSave();
   }));
   wrap.querySelectorAll(".notebtn").forEach(b=>b.addEventListener("click",()=>{
     const nb=wrap.querySelector(`.notebox[data-nb="${b.dataset.note}"]`);
@@ -506,6 +731,7 @@ function renderSections(){
     const btn=wrap.querySelector(`.notebtn[data-note="${key}"]`);
     if(comments[key]){ btn.textContent="✎ Edit note"; btn.classList.add("has"); }
     else { btn.textContent="＋ Add note"; btn.classList.remove("has"); }
+    scheduleAutoSave();
   }));
 }
 function updateProgress(){
@@ -522,6 +748,7 @@ function applyCheckType(btn){
   checkType=btn.dataset.ct; checkColor=btn.dataset.c;
   document.documentElement.style.setProperty("--accent", checkColor);
   const tc=document.querySelector('meta[name="theme-color"]'); if(tc) tc.setAttribute("content", checkColor);
+  scheduleAutoSave();
 }
 document.querySelectorAll(".ctype").forEach(b=>b.addEventListener("click",()=>applyCheckType(b)));
 
@@ -531,14 +758,13 @@ document.querySelectorAll(".awbtn").forEach(b=>b.addEventListener("click",()=>{
   document.querySelectorAll(".awbtn").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");
   $("#awReasonWrap").style.display = (airworthy==="Unserviceable") ? "block" : "none";
+  scheduleAutoSave();
 }));
 
 /* ---------------- Signature pad ---------------- */
 let sigCtx, drawing=false, signed=false, sigFitted=false;
 function fitSig(){
   const c=$("#sig"); const r=c.getBoundingClientRect();
-  // If the canvas is still hidden (inside a display:none container) its size is 0 —
-  // sizing it now would produce a zero-width canvas that exports blank. Bail and retry later.
   if(r.width<2 || r.height<2) return false;
   c.width=r.width*devicePixelRatio; c.height=r.height*devicePixelRatio;
   sigCtx=c.getContext("2d"); sigCtx.scale(devicePixelRatio,devicePixelRatio);
@@ -551,29 +777,44 @@ function initSig(){
   const pos=e=>{const b=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return[t.clientX-b.left,t.clientY-b.top];};
   const start=e=>{ if(!sigFitted && !fitSig()) return; drawing=true;signed=true;$("#sighint").style.display="none";const[x,y]=pos(e);sigCtx.beginPath();sigCtx.moveTo(x,y);e.preventDefault();};
   const move=e=>{if(!drawing)return;const[x,y]=pos(e);sigCtx.lineTo(x,y);sigCtx.stroke();e.preventDefault();};
-  const end=()=>drawing=false;
+  const end=()=>{ if(drawing){ drawing=false; scheduleAutoSave(); } };
   c.addEventListener("pointerdown",start); c.addEventListener("pointermove",move);
   window.addEventListener("pointerup",end);
-  // Re-fit on rotation/resize, but only when nothing is drawn yet (avoids wiping a signature).
   window.addEventListener("resize",()=>{ if(!signed) fitSig(); });
   window.addEventListener("orientationchange",()=>{ if(!signed) setTimeout(fitSig,200); });
 }
-// True only if the canvas actually contains ink — guards against a "signed" flag with a blank export.
 function sigHasInk(){
   try{
     const c=$("#sig"); if(!c.width||!c.height) return false;
     const d=sigCtx.getImageData(0,0,c.width,c.height).data;
-    for(let i=3;i<d.length;i+=4){ if(d[i]!==0) return true; } // any non-transparent pixel
+    for(let i=3;i<d.length;i+=4){ if(d[i]!==0) return true; }
     return false;
   }catch(e){ return signed; }
 }
 $("#clearSig").addEventListener("click",()=>{
   const c=$("#sig"); if(sigCtx) sigCtx.clearRect(0,0,c.width,c.height); signed=false; $("#sighint").style.display="grid";
+  scheduleAutoSave();
 });
 
 /* ---------------- Multi-image capture (with compression) ---------------- */
 function compressImage(file){
-  return new Promise((resolve,reject)=>{
+  return new Promise(async (resolve,reject)=>{
+    if("createImageBitmap" in window){
+      try{
+        const bitmap = await createImageBitmap(file);
+        let w = bitmap.width, h = bitmap.height;
+        const scale = Math.min(1, IMG_MAX_PX/Math.max(w,h));
+        w = Math.round(w*scale); h = Math.round(h*scale);
+        const cv = document.createElement("canvas"); cv.width=w; cv.height=h;
+        const ctx = cv.getContext("2d");
+        ctx.drawImage(bitmap,0,0,w,h);
+        bitmap.close();
+        const dataUrl = cv.toDataURL("image/jpeg", IMG_QUALITY);
+        cv.width=0; cv.height=0;
+        resolve(dataUrl);
+        return;
+      }catch(e){}
+    }
     const rd=new FileReader();
     rd.onload=()=>{
       const img=new Image();
@@ -583,7 +824,9 @@ function compressImage(file){
         w=Math.round(w*scale); h=Math.round(h*scale);
         const cv=document.createElement("canvas"); cv.width=w; cv.height=h;
         cv.getContext("2d").drawImage(img,0,0,w,h);
-        resolve(cv.toDataURL("image/jpeg", IMG_QUALITY));
+        const res=cv.toDataURL("image/jpeg", IMG_QUALITY);
+        cv.width=0; cv.height=0;
+        resolve(res);
       };
       img.onerror=reject; img.src=rd.result;
     };
@@ -594,9 +837,14 @@ $("#imgInput").addEventListener("change",async e=>{
   const files=[...e.target.files];
   for(const f of files){
     if(images.length>=MAX_IMAGES){ alert(`Maximum ${MAX_IMAGES} photos.`); break; }
-    try{ images.push(await compressImage(f)); }catch(_){}
+    try{
+      images.push(await compressImage(f));
+      renderThumbs();
+      scheduleAutoSave();
+      await new Promise(res=>setTimeout(res,0));
+    }catch(_){}
   }
-  e.target.value=""; renderThumbs();
+  e.target.value="";
 });
 function renderThumbs(){
   const box=$("#thumbs");
@@ -604,7 +852,7 @@ function renderThumbs(){
     `<div class="thumb"><img src="${src}"><button type="button" class="rm" data-i="${i}">×</button></div>`
   ).join("");
   box.querySelectorAll(".rm").forEach(b=>b.addEventListener("click",()=>{
-    images.splice(+b.dataset.i,1); renderThumbs();
+    images.splice(+b.dataset.i,1); renderThumbs(); scheduleAutoSave();
   }));
   $("#imgCount").textContent = images.length ? `${images.length}/${MAX_IMAGES} photos attached` : "";
 }
@@ -625,7 +873,10 @@ $("#recBtn").addEventListener("click",async()=>{
       stream.getTracks().forEach(t=>t.stop());
       const blob=new Blob(chunks,{type:voiceMime});
       const rd=new FileReader();
-      rd.onload=()=>{ voiceData=rd.result; const p=$("#voicePlay"); p.src=voiceData; p.style.display="block"; $("#recClear").style.display="inline"; };
+      rd.onload=()=>{
+        voiceData=rd.result; const p=$("#voicePlay"); p.src=voiceData; p.style.display="block"; $("#recClear").style.display="inline";
+        scheduleAutoSave();
+      };
       rd.readAsDataURL(blob);
     };
     mediaRec.start();
@@ -712,23 +963,22 @@ $("#submitBtn").addEventListener("click",async()=>{
   if(!auth){ showLogin("Please sign in first."); return; }
   const reg=$("#reg").value.trim();
   if(!reg){alert("Please select an aircraft registration.");return;}
-  // Airworthiness determination is required; an unserviceable call needs a reason.
   if(!airworthy){ alert("Please mark the aircraft Serviceable or Unserviceable."); return; }
   const awReason=$("#awReason").value.trim();
   if(airworthy==="Unserviceable" && !awReason){
     alert("Please state the reason the aircraft is unserviceable."); return;
   }
-  // Require a real signature — checks for actual ink, not just the tap flag.
   const hasInk = signed && sigHasInk();
   if(!hasInk){ alert("Please sign in the signature box before submitting."); return; }
-  // Flatten the signature onto a white background so it's legible on any viewer
-  // (a transparent PNG vanishes on dark backgrounds like a phone gallery).
+
   const sigC=$("#sig");
   const flat=document.createElement("canvas"); flat.width=sigC.width; flat.height=sigC.height;
   const fctx=flat.getContext("2d");
   fctx.fillStyle="#ffffff"; fctx.fillRect(0,0,flat.width,flat.height);
   fctx.drawImage(sigC,0,0);
   const signaturePng=flat.toDataURL("image/png");
+  flat.width=0; flat.height=0; // release canvas buffer
+
   const items=[];
   CHECKLIST.forEach((sec,si)=>sec[1].forEach((desc,ii)=>items.push({
     section:sec[0], item:desc,
@@ -745,16 +995,16 @@ $("#submitBtn").addEventListener("click",async()=>{
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
 
-  // Safety net: Vercel rejects request bodies over ~4.5MB with an unhelpful raw error.
-  // Catch it here first with a clear, actionable message instead of a silent sync failure later.
   const approxBytes = new Blob([JSON.stringify(rec)]).size;
-  const SAFE_LIMIT = 3.8 * 1024 * 1024; // stay comfortably under the 4.5MB platform ceiling
+  const SAFE_LIMIT = 3.8 * 1024 * 1024;
   if(approxBytes > SAFE_LIMIT){
     alert(`This submission is too large to send (${(approxBytes/1024/1024).toFixed(1)}MB).\n\nRemove a photo or shorten/re-record the voice note, then try again.`);
     return;
   }
 
+  const activeKey = activeDraftKey(reg);
   await Store.save(rec);
+  await Store.clearDraft(activeKey);
   await refreshOutbox();
   resetForm();
   goTo("out");
@@ -763,7 +1013,7 @@ $("#submitBtn").addEventListener("click",async()=>{
 
 /* ---------------- Sync engine (store-and-forward) ---------------- */
 let syncing=false;
-let sendingId=null;   // id of the record currently being transmitted (for the spinner)
+let sendingId=null;
 async function attemptSync(){
   if(syncing) return; syncing=true;
   let lastError=null;
@@ -772,8 +1022,8 @@ async function attemptSync(){
     if(online()){
       for(const r of recs){
         let ok=false;
-        sendingId=r.id; await refreshOutbox();   // show the spinner on this record
-        await new Promise(res=>setTimeout(res,60)); // let it paint before the request
+        sendingId=r.id; await refreshOutbox();
+        await new Promise(res=>setTimeout(res,60));
         const shownAt=Date.now();
         if(DEMO_MODE){ await new Promise(res=>setTimeout(res,900)); ok=true; }
         else{
@@ -783,19 +1033,16 @@ async function attemptSync(){
               body:JSON.stringify(r)});
             ok=resp.ok;
             if(resp.status===401||resp.status===403){
-              // token invalid or engineer revoked — stop, force re-login
               sendingId=null; auth=null; await Store.clearAuth();
               showLogin("Your sign-in is no longer valid. Please sign in again.");
               return;
             }
             if(!ok){
-              // Surface WHY it failed instead of silently retrying forever.
               const data=await resp.json().catch(()=>({}));
               lastError=data.detail || data.error || ("Server error "+resp.status);
             }
           }catch(e){ ok=false; lastError="Couldn't reach the server. Check your connection."; }
         }
-        // Keep the spinner on screen for a clear minimum so it never just blinks past.
         const shownFor=Date.now()-shownAt;
         if(shownFor<800) await new Promise(res=>setTimeout(res,800-shownFor));
         sendingId=null;
@@ -814,19 +1061,19 @@ async function attemptSync(){
 }
 $("#syncBtn").addEventListener("click",attemptSync);
 
-/* ---------------- Outbox rendering ---------------- */
+/* ---------------- Outbox rendering (Lightweight summary projection) ---------------- */
 async function refreshOutbox(){
-  const recs=(await Store.all()).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
+  const recs=(await Store.allSummaries()).sort((a,b)=>b.createdAt.localeCompare(a.createdAt));
   const list=$("#reclist");
   if(!recs.length){ list.innerHTML=`<div class="empty">No inspections saved yet.<br>Completed forms are stored on this device and appear here.</div>`; }
   else{
     list.innerHTML=recs.map(r=>{
-      const checked=r.items.filter(i=>i.eng||i.tech).length;
+      const checked=r.checkedCount;
       const sending=(r.id===sendingId && r.status==="pending");
       const sc=r.status==="synced"?"s-synced":sending?"s-sending":"s-pending";
       const lbl=r.status==="synced"?"Synced ✓":sending?`<span class="spin"></span>Sending…`:"Pending ↑";
-      const nImg=(r.images||[]).length;
-      const nNotes=(r.items||[]).filter(i=>i.comment).length;
+      const nImg=r.imageCount;
+      const nNotes=r.noteCount;
       const extras=[
         r.signature?"signed":"unsigned",
         nImg?`${nImg} photo${nImg>1?"s":""}`:null,
@@ -841,7 +1088,7 @@ async function refreshOutbox(){
         <span class="reg">${r.registration||"—"}</span>
         <span class="status ${sc}">${lbl}</span></div>
         <div class="meta">${r.checkType||"—"} · ${awTag||"no status"}</div>
-        <div class="meta">${r.date||"no date"} · ${r.engineer||"—"} · ${checked}/${r.items.length} items · ${extras}</div>
+        <div class="meta">${r.date||"no date"} · ${r.engineer||"—"} · ${checked}/${r.itemCount} items · ${extras}</div>
         <div class="meta">ID ${r.id.slice(0,13)}… · saved ${new Date(r.createdAt).toLocaleString()}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="dlbtn" data-dl="${r.id}">⬇ Download copy</button>
@@ -861,7 +1108,7 @@ async function refreshOutbox(){
 
 /* ---------------- Download a submission as a self-contained HTML file ---------------- */
 async function downloadRecord(id){
-  const rec=(await Store.all()).find(r=>r.id===id); if(!rec) return;
+  const rec=await Store.get(id); if(!rec) return;
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
   const rows=rec.items.map(i=>`<tr><td>${esc(i.item)}${i.comment?`<br><span style="color:#555;font-size:12px">↳ ${esc(i.comment)}</span>`:""}</td><td style="text-align:center">${i.eng?"✓":""}</td><td style="text-align:center">${i.tech?"✓":""}</td></tr>`).join("");
   const imgs=(rec.images||[]).map(src=>`<img src="${src}" style="max-width:100%;border:1px solid #ccc;border-radius:8px;margin:6px 0">`).join("");
@@ -888,7 +1135,7 @@ async function downloadRecord(id){
   a.click(); URL.revokeObjectURL(a.href);
 }
 async function updateBadges(){
-  const recs=await Store.all();
+  const recs=await Store.allSummaries();
   const pend=recs.filter(r=>r.status==="pending").length;
   $("#tabcount").textContent=recs.length?`(${recs.length})`:"";
   const q=$("#qpill");
@@ -911,9 +1158,12 @@ $("#tabForm").addEventListener("click",()=>goTo("form"));
 $("#tabOut").addEventListener("click",()=>goTo("out"));
 
 /* ---------------- Reset ---------------- */
-function resetForm(){
+function resetForm(clearReg = true){
   ["tsn","remarks","awReason"].forEach(id=>$("#"+id).value="");
-  $("#reg").selectedIndex=0;
+  if (clearReg) {
+    $("#reg").selectedIndex=0;
+    currentReg = "";
+  }
   $("#date").valueAsDate=new Date();
   Object.keys(marks).forEach(k=>delete marks[k]);
   Object.keys(comments).forEach(k=>delete comments[k]);
@@ -927,8 +1177,25 @@ function resetForm(){
   $("#clearSig").click();
   images=[]; renderThumbs();
   $("#recClear").click(); stopRec();
+  const banner = $("#draftBanner"); if (banner) banner.style.display = "none";
 }
-$("#resetBtn").addEventListener("click",()=>{ if(confirm("Clear this form?")) resetForm(); });
+$("#resetBtn").addEventListener("click",async()=>{
+  if(confirm("Clear this form?")){
+    const key = activeDraftKey();
+    await Store.clearDraft(key);
+    resetForm();
+  }
+});
+const discardBtn = $("#discardDraftBtn");
+if (discardBtn) {
+  discardBtn.addEventListener("click", async () => {
+    if (confirm("Discard this auto-saved draft?")) {
+      const key = activeDraftKey();
+      await Store.clearDraft(key);
+      resetForm();
+    }
+  });
+}
 
 /* ---------------- Boot ---------------- */
 (async function(){
@@ -942,6 +1209,28 @@ $("#resetBtn").addEventListener("click",()=>{ if(confirm("Clear this form?")) re
   document.documentElement.style.setProperty("--accent", checkColor);
   initSig();
   $("#date").valueAsDate=new Date();
+
+  // Attach input listeners for debounced auto-save
+  ["#tsn", "#date", "#remarks", "#awReason"].forEach(sel => {
+    const el = $(sel);
+    if (el) {
+      el.addEventListener("input", scheduleAutoSave);
+      el.addEventListener("change", scheduleAutoSave);
+    }
+  });
+  const regSel = $("#reg");
+  if (regSel) {
+    regSel.addEventListener("change", handleAircraftChange);
+  }
+
+  // Auto-restore initial draft if available
+  const initialReg = regSel ? regSel.value.trim() : "";
+  currentReg = initialReg;
+  const initialDraft = (await Store.getDraft(activeDraftKey(initialReg))) || (await Store.getDraft("draft_unassigned"));
+  if (initialDraft) {
+    await restoreFormFromDraft(initialDraft);
+  }
+
   refreshConn();
   await refreshOutbox();
   auth = await Store.getAuth();
