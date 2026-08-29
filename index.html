@@ -54,7 +54,7 @@
     margin:0 0 10px;font-weight:800}
   @media (prefers-color-scheme: dark){h2.sec{color:var(--gold)}}
   label.fld{display:block;font-size:12px;color:var(--muted);margin:0 0 4px;font-weight:600}
-  input[type=text],input[type=date],select,textarea{width:100%;font-size:16px;font-family:var(--mono);
+  input[type=text],input[type=number],input[type=date],select,textarea{width:100%;font-size:16px;font-family:var(--mono);
     padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);
     color:var(--ink);appearance:none;-webkit-appearance:none}
   select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),
@@ -246,9 +246,12 @@
             <option>P4-ORJ</option>
           </select>
         </div>
-        <div><label class="fld">TSN / CSN</label><input id="tsn" type="text" placeholder="hrs / cycles" autocomplete="off"></div>
+        <div><label class="fld">Date</label><input id="date" type="date"></div>
       </div>
-      <div style="margin-top:10px"><label class="fld">Date</label><input id="date" type="date"></div>
+      <div class="grid2" style="margin-top:10px">
+        <div><label class="fld">TSN (Hours)</label><input id="tsn" type="number" step="any" min="0" placeholder="e.g. 4120.5" autocomplete="off"></div>
+        <div><label class="fld">CSN (Cycles)</label><input id="csn" type="number" step="1" min="0" placeholder="e.g. 2850" autocomplete="off"></div>
+      </div>
     </div>
 
     <div id="sections"></div>
@@ -342,7 +345,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v18"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v19"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
@@ -564,6 +567,7 @@ function getFormDraftPayload() {
   return {
     registration: $("#reg") ? $("#reg").value : "",
     tsn: $("#tsn") ? $("#tsn").value.trim() : "",
+    csn: $("#csn") ? $("#csn").value.trim() : "",
     date: $("#date") ? $("#date").value : "",
     remarks: $("#remarks") ? $("#remarks").value.trim() : "",
     awReason: $("#awReason") ? $("#awReason").value.trim() : "",
@@ -580,7 +584,7 @@ function getFormDraftPayload() {
 async function saveCurrentDraft() {
   if (isRestoringDraft) return;
   const payload = getFormDraftPayload();
-  const isBlank = !payload.registration && !payload.tsn && !payload.remarks && !payload.awReason && !payload.airworthy &&
+  const isBlank = !payload.registration && !payload.tsn && !payload.csn && !payload.remarks && !payload.awReason && !payload.airworthy &&
                   !Object.keys(payload.marks).length && !Object.keys(payload.comments).length &&
                   !payload.images.length && !payload.voiceData && !payload.signature;
   const key = activeDraftKey();
@@ -608,6 +612,7 @@ async function restoreFormFromDraft(d) {
     if (d.registration !== undefined && $("#reg")) $("#reg").value = d.registration;
     currentReg = $("#reg") ? $("#reg").value.trim() : "";
     if (d.tsn !== undefined && $("#tsn")) $("#tsn").value = d.tsn;
+    if (d.csn !== undefined && $("#csn")) $("#csn").value = d.csn;
     if (d.date !== undefined && $("#date")) $("#date").value = d.date;
     if (d.remarks !== undefined && $("#remarks")) $("#remarks").value = d.remarks;
     if (d.awReason !== undefined && $("#awReason")) $("#awReason").value = d.awReason;
@@ -1015,6 +1020,8 @@ $("#submitBtn").addEventListener("click",async()=>{
   if(!auth){ showLogin("Please sign in first."); return; }
   const reg=$("#reg").value.trim();
   if(!reg){alert("Please select an aircraft registration.");return;}
+  if(!$("#tsn").value.trim()){alert("Please provide the TSN (Time Since New).");return;}
+  if(!$("#csn").value.trim()){alert("Please provide the CSN (Cycles Since New).");return;}
   if(!airworthy){ alert("Please mark the aircraft Serviceable or Unserviceable."); return; }
   const awReason=$("#awReason").value.trim();
   if(airworthy==="Unserviceable" && !awReason){
@@ -1040,7 +1047,7 @@ $("#submitBtn").addEventListener("click",async()=>{
   const rec={
     id:uuid(), status:"pending", createdAt:new Date().toISOString(),
     checkType, airworthy, unserviceableReason:(airworthy==="Unserviceable"?awReason:""),
-    registration:reg, tsn:$("#tsn").value.trim(), date:$("#date").value,
+    registration:reg, tsn:$("#tsn").value.trim(), csn:$("#csn").value.trim(), date:$("#date").value,
     engineer:auth.name, authToken:auth.token,
     remarks:$("#remarks").value.trim(),
     signature:signaturePng,
@@ -1173,7 +1180,7 @@ async function downloadRecord(id){
   <body style="font-family:Arial,sans-serif;color:#0d1526;max-width:760px;margin:20px auto;padding:0 14px">
   <h2 style="color:#071A5A;margin-bottom:4px">Flybird ${esc(rec.checkType||"Pre-flight")} Checklist</h2>
   <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${esc(rec.checkType||"Pre-flight")}</span></p>
-  <p><b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN/CSN:</b> ${esc(rec.tsn)} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
+  <p><b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN:</b> ${rec.tsn ? esc(rec.tsn) + " hrs" : "—"} &nbsp; <b>CSN:</b> ${rec.csn ? esc(rec.csn) + " cycles" : "—"} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
   <p><b>Engineer:</b> ${esc(rec.engineer)} &nbsp; <b>ID:</b> ${esc(rec.id)}</p>
   ${awBanner}
   <table style="border-collapse:collapse;width:100%;font-size:13px" border="1" cellpadding="5">
@@ -1211,7 +1218,7 @@ $("#tabOut").addEventListener("click",()=>goTo("out"));
 
 /* ---------------- Reset ---------------- */
 function resetForm(clearReg = true){
-  ["tsn","remarks","awReason"].forEach(id=>$("#"+id).value="");
+  ["tsn","csn","remarks","awReason"].forEach(id=>$("#"+id).value="");
   if (clearReg) {
     $("#reg").selectedIndex=0;
     currentReg = "";
@@ -1263,7 +1270,7 @@ if (discardBtn) {
   $("#date").valueAsDate=new Date();
 
   // Attach input listeners for debounced auto-save
-  ["#tsn", "#date", "#remarks", "#awReason"].forEach(sel => {
+  ["#tsn", "#csn", "#date", "#remarks", "#awReason"].forEach(sel => {
     const el = $(sel);
     if (el) {
       el.addEventListener("input", scheduleAutoSave);

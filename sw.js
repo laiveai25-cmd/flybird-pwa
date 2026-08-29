@@ -1,6 +1,6 @@
 /* Flybird GIV — offline app-shell cache.
    Bump CACHE (e.g. v2, v3) whenever you change index.html so phones pick up the new version. */
-const CACHE = "flybird-giv-v18";
+const CACHE = "flybird-giv-v19";
 const ASSETS = [
   "./",
   "./index.html",
