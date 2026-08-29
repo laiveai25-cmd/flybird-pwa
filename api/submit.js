@@ -95,6 +95,25 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: "engineer no longer approved" });
     }
 
+    // Parse numeric TSN (float / decimal hours) and CSN (integer cycles), sanitize empty strings to null
+    const parseTsn = (val) => {
+      if (val === undefined || val === null) return null;
+      const s = String(val).trim();
+      if (s === "") return null;
+      const n = Number(s);
+      return isNaN(n) ? null : n;
+    };
+    const parseCsn = (val) => {
+      if (val === undefined || val === null) return null;
+      const s = String(val).trim();
+      if (s === "") return null;
+      const n = parseInt(s, 10);
+      return isNaN(n) ? null : n;
+    };
+
+    const parsedTsn = parseTsn(r.tsn);
+    const parsedCsn = parseCsn(r.csn);
+
     // Save durably to Supabase FIRST. This is the system of record — email is just a
     // notification on top of it. A plain insert; a primary-key conflict (409) means the
     // record is already stored, so we treat that as an idempotent no-op.
@@ -117,7 +136,8 @@ export default async function handler(req, res) {
             airworthy: r.airworthy,
             unserviceable_reason: r.unserviceableReason,
             registration: r.registration,
-            tsn: r.tsn,
+            tsn: parsedTsn,
+            csn: parsedCsn,
             date: r.date,
             engineer: name,
             remarks: r.remarks,
@@ -187,7 +207,7 @@ export default async function handler(req, res) {
       <div style="font-family:Arial,sans-serif;color:#0d1526">
         <h2 style="color:#071A5A;margin-bottom:4px">Flybird ${escape(r.checkType || "Pre-flight")} Checklist</h2>
         <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${escape(r.checkType || "Pre-flight")}</span></p>
-        <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN/CSN:</b> ${escape(r.tsn)} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
+        <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN:</b> ${parsedTsn !== null ? escape(parsedTsn) + " hrs" : "—"} &nbsp; <b>CSN:</b> ${parsedCsn !== null ? escape(parsedCsn) + " cycles" : "—"} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
         <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
         ${awBanner}
         <table style="border-collapse:collapse;width:100%;font-size:13px">
