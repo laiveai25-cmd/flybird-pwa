@@ -1,0 +1,115 @@
+# Flybird PWA Refactoring: Dynamic Multi-Fleet System & Media Offloading
+
+## Goal
+Refactor the PWA from a static, single-aircraft checklist into a dynamic, multi-fleet system supporting Gulfstream, Hawker, and Challenger. Transition media handling from inline Base64 strings to Supabase Storage URLs for backend storage, while keeping the email dispatch instantaneous and decoupled.
+
+## User Review Required
+> [!IMPORTANT]
+> **Email vs DB Race Condition Resolution:**
+> You specified that media must upload to Supabase *before* the final submission payload is sent, but also that email dispatch must *not* be blocked by Supabase uploads.
+> **My Proposed Flow to satisfy this:**
+> 1. When the user taps "Submit", the frontend immediately fires a request to `/api/submit` with `action: "email"` carrying the raw Base64 data. This instantly sends the Resend email without delay.
+> 2. Concurrently, the frontend uploads the Base64 blobs to Supabase Storage (`inspection-media` and `inspection-signatures`).
+> 3. Once Supabase returns the file URLs, the frontend constructs the final payload (with URLs instead of Base64) and sends a second request to `/api/submit` with `action: "store"` to insert the record into the PostgreSQL database.
+> 
+> *Please confirm if this split-action approach for `/api/submit` is acceptable to respect the existing serverless structure while decoupling the email from storage uploads.*
+
+---
+
+## 1. Files to be Modified or Created
+
+- **`index.html`**
+  - **Top UI:** Add "Fleet Series" dropdown. Link "Aircraft Registration" options dynamically based on the selected fleet.
+  - **Checklist Engine:** Refactor `renderSections()` to dynamically build UI based on the selected fleet template, supporting standard toggles, numeric inputs (tire pressures), and date pickers (life limits).
+  - **State Management:** Add logic to re-hydrate/clear drafts (`marks`, `comments`, `metaValues`) when fleets change to prevent memory leaks.
+  - **Supabase Storage Uploads:** Implement Supabase Storage REST API calls to upload media to `inspection-media` and `inspection-signatures` buckets and retrieve public/private URLs.
+  - **Submission Flow:** Implement the two-stage submission (Immediate Email Dispatch -> Storage Uploads -> Final DB Submission).
+- **`api/submit.js`**
+  - Adapt the existing endpoint to handle distinct `action: "email"` and `action: "store"` requests.
+  - Update the Email HTML builder to dynamically render standard checklist items alongside `meta_entry` items (numeric readings, dates).
+- **`agent-context/fleet-data.js` (Optional/Internal)**
+  - We will embed the Hawker and Challenger JSON templates directly into `index.html` (or serve them via a linked JS file) to construct the dynamic middle container.
+
+---
+
+## 2. State Structure for Dynamic Checklist Templates
+
+The checklist state will transition from a flat index-based array to an ID-based object to support polymorphic JSONB storage.
+
+**Template Definition Structure:**
+```javascript
+const FLEETS = {
+  "Challenger": [
+    {
+      section_id: "CHL-SEC1",
+      title: "Front Fuselage",
+      items: [
+        { id: "CHL-FF-A1", description: "Static Ports check..." },
+        { 
+          id: "CHL-FF-D2", 
+          description: "Record NLG Tire #1 Pressure",
+          meta_entry: { type: "numeric", unit: "psi" } 
+        }
+      ]
+    }
+  ],
+  "Hawker": [ /* ... */ ],
+  "Gulfstream": [ /* ... existing ... */ ]
+}
+```
+
+**Frontend Reactivity State:**
+We will introduce a `metaValues` object to track numeric/date inputs alongside the existing `marks` and `comments`.
+```javascript
+let currentFleet = "Gulfstream"; // Active template
+let marks = {};      // e.g., { "CHL-FF-A1-eng": true }
+let comments = {};   // e.g., { "CHL-FF-A1": "Slight wear noticed" }
+let metaValues = {}; // e.g., { "CHL-FF-D2": "155" } -> for Tire Pressures/Dates
+```
+
+**Final JSONB Payload (`items` array):**
+```json
+[
+  {
+    "id": "CHL-FF-D2",
+    "item": "Record NLG Tire #1 Pressure",
+    "eng": true,
+    "tech": false,
+    "comment": null,
+    "meta_value": "155",
+    "meta_unit": "psi"
+  }
+]
+```
+
+---
+
+## 3. Dynamic Email HTML Builder Rendering
+
+The Vercel `/api/submit.js` endpoint will be updated to parse and render the polymorphic `items` JSON array. 
+
+When generating the HTML table rows:
+```javascript
+const rows = (r.items || []).map((i) => {
+  // Base description & comments
+  let text = escape(i.item);
+  if (i.comment) {
+    text += `<br><span style="color:#666;font-size:12px">&#8627; ${escape(i.comment)}</span>`;
+  }
+  
+  // Dynamic Meta Entry (Readings & Dates)
+  if (i.meta_value) {
+    const unit = i.meta_unit ? ` ${escape(i.meta_unit)}` : "";
+    text += `<br><span style="color:#003B73;font-size:13px;font-weight:bold;">
+               ↳ Recorded Value: ${escape(i.meta_value)}${unit}
+             </span>`;
+  }
+
+  return `<tr>
+    <td style="padding:4px 8px;border-bottom:1px solid #eee">${text}</td>
+    <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "\u2713" : ""}</td>
+    <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "\u2713" : ""}</td>
+  </tr>`;
+}).join("");
+```
+This ensures the Resend email cleanly displays Gulfstream's pass/fail toggles alongside Challenger's tire pressure readings and Hawker's daily-only task indicators.
