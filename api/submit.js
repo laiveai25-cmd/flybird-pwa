@@ -147,6 +147,7 @@ export default async function handler(req, res) {
     // notification on top of it. A plain insert; a primary-key conflict (409) means the
     // record is already stored, so we treat that as an idempotent no-op.
     let isDuplicate = false;
+    let dbError = null;
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
       // 1. Upload media to Storage before DB insert
       if (base64Sig && base64Sig.startsWith("data:")) {
@@ -182,7 +183,6 @@ export default async function handler(req, res) {
         }
       }
 
-      let dbError = null;
       // Normalise the base: drop trailing slash and any accidental /rest or /rest/v1 suffix.
       const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
       try {
@@ -339,15 +339,23 @@ export default async function handler(req, res) {
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY && !dbError) {
       // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
       const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
-      fetch(`${base}/rest/v1/submissions?id=eq.${r.id}`, {
-        method: "PATCH",
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ emailed_at: new Date().toISOString() }),
-      }).catch(() => {});
+      try {
+        const patchRes = await fetch(`${base}/rest/v1/submissions?id=eq.${encodeURIComponent(r.id)}`, {
+          method: "PATCH",
+          headers: {
+            apikey: process.env.SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ emailed_at: new Date().toISOString() }),
+        });
+        if (!patchRes.ok) {
+          console.error("Failed to update emailed_at:", patchRes.status, await patchRes.text().catch(() => ""));
+        }
+      } catch (patchErr) {
+        console.error("Error updating emailed_at:", patchErr);
+      }
     }
 
     // Email dispatch takes precedence. Do not throw dbError. Return 200 with diagnostics.
