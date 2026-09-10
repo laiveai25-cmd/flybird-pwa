@@ -351,7 +351,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v21"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v23"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---------------- Durable storage (IndexedDB + fallback) ---------------- */
@@ -360,7 +360,7 @@ const Store = (() => {
   function open(){
     return new Promise(res=>{
       try{
-        const r=indexedDB.open("flybird-preflight",4);
+        const r=indexedDB.open("flybird-preflight",5);
         r.onupgradeneeded=e=>{
           const d=e.target.result;
           if(!d.objectStoreNames.contains("subs")) d.createObjectStore("subs",{keyPath:"id"});
@@ -601,7 +601,7 @@ async function saveCurrentDraft() {
   await Store.saveDraft(key, payload);
   if (payload.registration) {
     await Store.saveDraft("draft_last_active", {
-      key,
+      draftKey: key,
       fleet: payload.fleet,
       reg: payload.registration,
       updatedAt: new Date().toISOString()
@@ -1427,8 +1427,11 @@ if (discardBtn) {
   // Auto-restore initial draft if available
   let initialDraft = null;
   const lastActive = await Store.getDraft("draft_last_active");
-  if (lastActive && lastActive.key) {
-    initialDraft = await Store.getDraft(lastActive.key);
+  if (lastActive) {
+    const target = lastActive.draftKey || lastActive.key;
+    if (target && target !== "draft_last_active") {
+      initialDraft = await Store.getDraft(target);
+    }
   }
   if (!initialDraft) {
     const initialReg = regSel ? regSel.value.trim() : "";
