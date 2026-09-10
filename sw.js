@@ -8,7 +8,8 @@ const ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
-  "./favicon.png"
+  "./favicon.png",
+  "./js/fleets.js"
 ];
 
 self.addEventListener("install", (e) => {
