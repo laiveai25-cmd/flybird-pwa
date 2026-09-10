@@ -188,8 +188,8 @@
   <div class="hrow">
     <div class="logo">F</div>
     <div>
-      <div class="htitle">Gulfstream Pre-flight Checklist</div>
-      <div class="hsub">Flybird · Gulfstream</div>
+      <div class="htitle">Flybird DAC App</div>
+      <div class="hsub">Digital Aircraft Checklist</div>
     </div>
     <div class="conn">
       <span id="qpill" class="pill queue" style="display:none">0 queued</span>
@@ -220,7 +220,7 @@
   <!-- FORM VIEW -->
   <section id="viewForm">
     <div id="draftBanner" class="banner" style="display:none;background:rgba(46,139,111,.14);border-color:var(--synced);color:var(--synced)">
-      <div style="display:flex;align-items:center;justify-space-between;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span id="draftMsg">Restored saved draft</span>
         <button type="button" class="link" id="discardDraftBtn" style="color:var(--offline);margin-left:auto">Discard draft</button>
       </div>
@@ -350,7 +350,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v20"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v21"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---------------- Durable storage (IndexedDB + fallback) ---------------- */

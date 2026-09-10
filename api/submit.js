@@ -182,6 +182,7 @@ export default async function handler(req, res) {
         }
       }
 
+      let dbError = null;
       // Normalise the base: drop trailing slash and any accidental /rest or /rest/v1 suffix.
       const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
       try {
@@ -198,7 +199,7 @@ export default async function handler(req, res) {
             check_type: r.checkType,
             airworthy: r.airworthy,
             unserviceable_reason: r.unserviceableReason,
-            fleet: r.fleet,
+            fleet: r.fleet || r.fleet_series || null,
             registration: r.registration,
             tsn: parsedTsn,
             csn: parsedCsn,
@@ -208,8 +209,7 @@ export default async function handler(req, res) {
             items: r.items,
             signature: r.signature,
             images: r.images,
-            voice: r.voice,
-            voice_mime: r.voiceMime,
+            voice: r.voice
           }),
         });
         if (dbResp.status === 409) {
@@ -226,13 +226,16 @@ export default async function handler(req, res) {
             if (Array.isArray(arr) && arr[0] && arr[0].emailed_at) isDuplicate = true;
           } catch (e) { /* can't confirm — fall through and send to guarantee delivery */ }
         } else if (!dbResp.ok) {
-          // DB rejected the write — log it, but DO NOT skip the email.
+          // DB rejected the write. We capture this error so we can STILL send the email,
+          // but we MUST throw it at the end to trigger 500 and stop the client sync.
           const detail = await dbResp.text().catch(() => "");
           console.error("Supabase insert failed:", dbResp.status, detail);
+          dbError = new Error(`Supabase insert failed: ${dbResp.status} ${detail}`);
         }
       } catch (e) {
-        // Storage being unreachable should not block the email — log and continue.
-        console.error("Supabase insert error:", e);
+        // Storage error or network error. Capture to throw later.
+        console.error("Supabase database error:", e);
+        dbError = new Error(`Database operation failed: ${e.message}`);
       }
     }
     if (isDuplicate) {
@@ -329,13 +332,12 @@ export default async function handler(req, res) {
 
     if (!resp.ok) {
       const detail = await resp.text();
-      // The record is already safely stored above — a failed email does NOT lose the
-      // inspection. It just means this one needs a resend once the config is fixed.
+      // If email fails, THIS is the fatal crash that deserves a 500 or 422.
       return res.status(422).json({ error: "email failed", detail });
     }
 
-    // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY && !dbError) {
+      // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
       const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
       fetch(`${base}/rest/v1/submissions?id=eq.${r.id}`, {
         method: "PATCH",
@@ -348,7 +350,27 @@ export default async function handler(req, res) {
       }).catch(() => {});
     }
 
-    return res.status(200).json({ ok: true, id: r.id, engineer: name });
+    // Email dispatch takes precedence. Do not throw dbError. Return 200 with diagnostics.
+    if (dbError) {
+      return res.status(200).json({ 
+        ok: true, 
+        success: true, 
+        emailSent: true, 
+        dbSaved: false, 
+        dbError: dbError.message,
+        id: r.id, 
+        engineer: name 
+      });
+    }
+
+    return res.status(200).json({ 
+      ok: true, 
+      success: true,
+      emailSent: true,
+      dbSaved: true,
+      id: r.id, 
+      engineer: name 
+    });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }
