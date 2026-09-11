@@ -59,6 +59,30 @@ function verifyToken(token) {
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "POST only" });
 
+  async function uploadToStorage(baseStr, bucket, path, mimeType) {
+    if (!baseStr || !baseStr.startsWith("data:")) return null; 
+    const comma = baseStr.indexOf(",");
+    const base64Data = baseStr.substring(comma + 1);
+    const buffer = Buffer.from(base64Data, "base64");
+    const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
+    const url = `${base}/storage/v1/object/${bucket}/${path}`;
+    const sres = await fetch(url, {
+      method: "POST",
+      headers: {
+        apikey: process.env.SUPABASE_SERVICE_KEY,
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+        "Content-Type": mimeType,
+        "x-upsert": "true"
+      },
+      body: buffer
+    });
+    if (!sres.ok) {
+      console.error(`Storage upload failed to ${bucket}:`, await sres.text());
+      return null; 
+    }
+    return `${base}/storage/v1/object/public/${bucket}/${path}`;
+  }
+
   // 1) Shared app-token gate (fail closed if not configured).
   if (!process.env.APP_TOKEN || (req.headers["x-app-token"] || "") !== process.env.APP_TOKEN) {
     return res.status(401).json({ error: "unauthorised (app token)" });
@@ -114,11 +138,51 @@ export default async function handler(req, res) {
     const parsedTsn = parseTsn(r.tsn);
     const parsedCsn = parseCsn(r.csn);
 
+    const base64Sig = r.signature;
+    const base64Images = [...(r.images || [])];
+    const base64Voice = r.voice;
+    let emailHtml = r.htmlDoc || "";
+
     // Save durably to Supabase FIRST. This is the system of record — email is just a
     // notification on top of it. A plain insert; a primary-key conflict (409) means the
     // record is already stored, so we treat that as an idempotent no-op.
     let isDuplicate = false;
+    let dbError = null;
     if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+      // 1. Upload media to Storage before DB insert
+      if (base64Sig && base64Sig.startsWith("data:")) {
+        const url = await uploadToStorage(base64Sig, "inspection-signatures", `${r.id}/signature.png`, "image/png");
+        if (url) r.signature = url;
+      }
+      
+      const newImages = [];
+      for (let i = 0; i < base64Images.length; i++) {
+        const b64 = base64Images[i];
+        if (b64 && b64.startsWith("data:")) {
+          const ext = (b64.split(";")[0].split("/")[1] || "jpg");
+          const url = await uploadToStorage(b64, "inspection-media", `photos/${r.id}/photo-${i + 1}.${ext}`, `image/${ext}`);
+          if (url) {
+             newImages.push(url);
+             if (emailHtml) emailHtml = emailHtml.split(b64).join(url);
+          } else {
+             newImages.push(b64);
+          }
+        } else {
+          newImages.push(b64);
+        }
+      }
+      r.images = newImages;
+
+      if (base64Voice && base64Voice.startsWith("data:")) {
+        const raw = (r.voiceMime || (base64Voice.split(";")[0].split(":")[1]) || "audio/webm");
+        const ext = raw.includes("mp4") || raw.includes("m4a") ? "m4a" : raw.includes("ogg") ? "ogg" : "webm";
+        const url = await uploadToStorage(base64Voice, "inspection-media", `voice/${r.id}/voice-note.${ext}`, raw);
+        if (url) {
+          r.voice = url;
+          if (emailHtml) emailHtml = emailHtml.split(base64Voice).join(url);
+        }
+      }
+
       // Normalise the base: drop trailing slash and any accidental /rest or /rest/v1 suffix.
       const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
       try {
@@ -135,6 +199,7 @@ export default async function handler(req, res) {
             check_type: r.checkType,
             airworthy: r.airworthy,
             unserviceable_reason: r.unserviceableReason,
+            fleet: r.fleet || r.fleet_series || null,
             registration: r.registration,
             tsn: parsedTsn,
             csn: parsedCsn,
@@ -144,8 +209,7 @@ export default async function handler(req, res) {
             items: r.items,
             signature: r.signature,
             images: r.images,
-            voice: r.voice,
-            voice_mime: r.voiceMime,
+            voice: r.voice
           }),
         });
         if (dbResp.status === 409) {
@@ -162,62 +226,67 @@ export default async function handler(req, res) {
             if (Array.isArray(arr) && arr[0] && arr[0].emailed_at) isDuplicate = true;
           } catch (e) { /* can't confirm — fall through and send to guarantee delivery */ }
         } else if (!dbResp.ok) {
-          // DB rejected the write — log it, but DO NOT skip the email.
+          // DB rejected the write. We capture this error so we can STILL send the email,
+          // but we MUST throw it at the end to trigger 500 and stop the client sync.
           const detail = await dbResp.text().catch(() => "");
           console.error("Supabase insert failed:", dbResp.status, detail);
+          dbError = new Error(`Supabase insert failed: ${dbResp.status} ${detail}`);
         }
       } catch (e) {
-        // Storage being unreachable should not block the email — log and continue.
-        console.error("Supabase insert error:", e);
+        // Storage error or network error. Capture to throw later.
+        console.error("Supabase database error:", e);
+        dbError = new Error(`Database operation failed: ${e.message}`);
       }
     }
     if (isDuplicate) {
       return res.status(200).json({ ok: true, id: r.id, duplicate: true });
     }
 
-    const rows = (r.items || [])
-      .map(
-        (i) =>
-          `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}${
-            i.comment
-              ? `<br><span style="color:#666;font-size:12px">&#8627; ${escape(i.comment)}</span>`
-              : ""
-          }</td>
-           <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "\u2713" : ""}</td>
-           <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "\u2713" : ""}</td></tr>`
-      )
-      .join("");
+    let html = emailHtml;
+    if (!html) {
+      const rows = (r.items || [])
+        .map(
+          (i) =>
+            `<tr><td style="padding:4px 8px;border-bottom:1px solid #eee">${escape(i.item)}${
+              i.comment
+                ? `<br><span style="color:#666;font-size:12px">&#8627; ${escape(i.comment)}</span>`
+                : ""
+            }</td>
+             <td style="text-align:center;border-bottom:1px solid #eee">${i.eng ? "\u2713" : ""}</td>
+             <td style="text-align:center;border-bottom:1px solid #eee">${i.tech ? "\u2713" : ""}</td></tr>`
+        )
+        .join("");
 
-    const remarksHtml = r.remarks
-      ? `<div style="margin:14px 0;padding:12px 14px;border-left:4px solid #C9A84C;background:#FAF6EC">
-           <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">General Remarks & Notes</div>
-           <div style="white-space:pre-wrap;font-size:13px">${escape(r.remarks)}</div>
-         </div>`
-      : "";
+      const remarksHtml = r.remarks
+        ? `<div style="margin:14px 0;padding:12px 14px;border-left:4px solid #C9A84C;background:#FAF6EC">
+             <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#974706;font-weight:700;margin-bottom:4px">General Remarks & Notes</div>
+             <div style="white-space:pre-wrap;font-size:13px">${escape(r.remarks)}</div>
+           </div>`
+        : "";
 
-    // Airworthiness banner — green for serviceable, red for unserviceable (with reason).
-    const awColor = r.airworthy === "Serviceable" ? "#2E8B6F" : "#B23A48";
-    const awBanner = r.airworthy
-      ? `<div style="background:${awColor};color:#fff;padding:12px 16px;border-radius:8px;font-weight:700;font-size:15px;margin:12px 0">
-           ${escape(r.airworthy)}${r.unserviceableReason ? ` &mdash; ${escape(r.unserviceableReason)}` : ""}
-         </div>`
-      : "";
+      const awColor = r.airworthy === "Serviceable" ? "#2E8B6F" : "#B23A48";
+      const awBanner = r.airworthy
+        ? `<div style="background:${awColor};color:#fff;padding:12px 16px;border-radius:8px;font-weight:700;font-size:15px;margin:12px 0">
+             ${escape(r.airworthy)}${r.unserviceableReason ? ` &mdash; ${escape(r.unserviceableReason)}` : ""}
+           </div>`
+        : "";
 
-    const html = `
-      <div style="font-family:Arial,sans-serif;color:#0d1526">
-        <h2 style="color:#071A5A;margin-bottom:4px">Flybird ${escape(r.checkType || "Pre-flight")} Checklist</h2>
-        <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${escape(r.checkType || "Pre-flight")}</span></p>
-        <p><b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN:</b> ${parsedTsn !== null ? escape(parsedTsn) + " hrs" : "—"} &nbsp; <b>CSN:</b> ${parsedCsn !== null ? escape(parsedCsn) + " cycles" : "—"} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
-        <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
-        ${awBanner}
-        <table style="border-collapse:collapse;width:100%;font-size:13px">
-          <tr><th style="text-align:left;padding:4px 8px;background:#071A5A;color:#fff">Item</th>
-              <th style="background:#071A5A;color:#fff">ENG</th><th style="background:#071A5A;color:#fff">TECH</th></tr>
-          ${rows}
-        </table>
-        ${remarksHtml}
-        <p style="margin-top:14px;color:#5a6577;font-size:12px">${attachSummary(r)}</p>
-      </div>`;
+      html = `
+        <div style="font-family:Arial,sans-serif;color:#0d1526">
+          <h2 style="color:#071A5A;margin-bottom:4px">Flybird ${escape(r.checkType || "Pre-flight")} Checklist</h2>
+          <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${escape(r.checkType || "Pre-flight")}</span></p>
+          <p><b>Fleet:</b> ${escape(r.fleet || "—")} &nbsp; <b>Registration:</b> ${escape(r.registration)} &nbsp; <b>TSN:</b> ${parsedTsn !== null ? escape(parsedTsn) + " hrs" : "—"} &nbsp; <b>CSN:</b> ${parsedCsn !== null ? escape(parsedCsn) + " cycles" : "—"} &nbsp; <b>Date:</b> ${escape(r.date)}</p>
+          <p><b>Engineer:</b> ${escape(name)} <span style="color:#2E8B6F">&#10003; verified</span> &nbsp; <b>Submission ID:</b> ${escape(r.id)}</p>
+          ${awBanner}
+          <table style="border-collapse:collapse;width:100%;font-size:13px">
+            <tr><th style="text-align:left;padding:4px 8px;background:#071A5A;color:#fff">Item</th>
+                <th style="background:#071A5A;color:#fff">ENG</th><th style="background:#071A5A;color:#fff">TECH</th></tr>
+            ${rows}
+          </table>
+          ${remarksHtml}
+          <p style="margin-top:14px;color:#5a6577;font-size:12px">${attachSummary(r)}</p>
+        </div>`;
+    }
 
     // Build attachments defensively. A data URL looks like "data:<mime>;base64,<DATA>".
     // If DATA is missing/empty (malformed capture), skip that attachment rather than
@@ -231,17 +300,17 @@ export default async function handler(req, res) {
     };
 
     const attachments = [];
-    const sig = b64(r.signature);
+    const sig = b64(base64Sig);
     if (sig) attachments.push({ filename: "signature.png", content: sig });
-    (r.images || []).forEach((img, idx) => {
+    base64Images.forEach((img, idx) => {
       const content = b64(img);
       if (!content) return;
       const ext = (img.split(";")[0].split("/")[1] || "jpg");
       attachments.push({ filename: `photo-${idx + 1}.${ext}`, content });
     });
-    const voice = b64(r.voice);
+    const voice = b64(base64Voice);
     if (voice) {
-      const raw = (r.voiceMime || (r.voice.split(";")[0].split(":")[1]) || "audio/webm");
+      const raw = (r.voiceMime || (base64Voice.split(";")[0].split(":")[1]) || "audio/webm");
       const ext = raw.includes("mp4") || raw.includes("m4a") ? "m4a" : raw.includes("ogg") ? "ogg" : "webm";
       attachments.push({ filename: `voice-note.${ext}`, content: voice });
     }
@@ -263,26 +332,53 @@ export default async function handler(req, res) {
 
     if (!resp.ok) {
       const detail = await resp.text();
-      // The record is already safely stored above — a failed email does NOT lose the
-      // inspection. It just means this one needs a resend once the config is fixed.
+      // If email fails, THIS is the fatal crash that deserves a 500 or 422.
       return res.status(422).json({ error: "email failed", detail });
     }
 
-    // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY && !dbError) {
+      // Mark as emailed (best-effort — a failure here doesn't affect the saved record).
       const base = (process.env.SUPABASE_URL || "").replace(/\/+$/, "").replace(/\/rest(\/v1)?$/, "");
-      fetch(`${base}/rest/v1/submissions?id=eq.${r.id}`, {
-        method: "PATCH",
-        headers: {
-          apikey: process.env.SUPABASE_SERVICE_KEY,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ emailed_at: new Date().toISOString() }),
-      }).catch(() => {});
+      try {
+        const patchRes = await fetch(`${base}/rest/v1/submissions?id=eq.${encodeURIComponent(r.id)}`, {
+          method: "PATCH",
+          headers: {
+            apikey: process.env.SUPABASE_SERVICE_KEY,
+            Authorization: `Bearer ${process.env.SUPABASE_SERVICE_KEY}`,
+            "Content-Type": "application/json",
+            Prefer: "return=minimal",
+          },
+          body: JSON.stringify({ emailed_at: new Date().toISOString() }),
+        });
+        if (!patchRes.ok) {
+          console.error("Failed to update emailed_at:", patchRes.status, await patchRes.text().catch(() => ""));
+        }
+      } catch (patchErr) {
+        console.error("Error updating emailed_at:", patchErr);
+      }
     }
 
-    return res.status(200).json({ ok: true, id: r.id, engineer: name });
+    // Email dispatch takes precedence. Do not throw dbError. Return 200 with diagnostics.
+    if (dbError) {
+      return res.status(200).json({ 
+        ok: true, 
+        success: true, 
+        emailSent: true, 
+        dbSaved: false, 
+        dbError: dbError.message,
+        id: r.id, 
+        engineer: name 
+      });
+    }
+
+    return res.status(200).json({ 
+      ok: true, 
+      success: true,
+      emailSent: true,
+      dbSaved: true,
+      id: r.id, 
+      engineer: name 
+    });
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }

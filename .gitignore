@@ -1,0 +1,14 @@
+# Agent context & documentation
+agent-context/
+
+# Dependencies & logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment & OS
+.env
+.env.local
+.DS_Store
+Thumbs.db

@@ -1,6 +1,6 @@
 /* Flybird GIV — offline app-shell cache.
    Bump CACHE (e.g. v2, v3) whenever you change index.html so phones pick up the new version. */
-const CACHE = "flybird-giv-v19";
+const CACHE = "flybird-giv-v23";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,7 +8,8 @@ const ASSETS = [
   "./icon-192.png",
   "./icon-512.png",
   "./apple-touch-icon.png",
-  "./favicon.png"
+  "./favicon.png",
+  "./js/fleets.js"
 ];
 
 self.addEventListener("install", (e) => {

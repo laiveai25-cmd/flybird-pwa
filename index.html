@@ -85,6 +85,7 @@
   .notebtn.has{color:var(--accent,#185FA5)}
   .notebox{width:100%;margin-top:8px;font-family:var(--ui);font-size:14px;min-height:56px;
     padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);resize:vertical}
+  .item-oem-note{margin-top:6px;font-size:12.5px;padding:8px 10px;background:rgba(201,135,58,0.1);border-left:3px solid var(--pending);border-radius:0 6px 6px 0;color:var(--ink);line-height:1.4}
 
   /* Check-type selector */
   .ctypes{display:flex;gap:8px}
@@ -188,11 +189,12 @@
   <div class="hrow">
     <div class="logo">F</div>
     <div>
-      <div class="htitle">Gulfstream Pre-flight Checklist</div>
-      <div class="hsub">Flybird · Gulfstream</div>
+      <div class="htitle">Flybird DAC App</div>
+      <div class="hsub">Digital Aircraft Checklist</div>
     </div>
     <div class="conn">
       <span id="qpill" class="pill queue" style="display:none">0 queued</span>
+      <span id="draftPill" class="pill" style="display:none;background:rgba(46,139,111,.18);color:var(--synced);font-weight:600">Draft saved</span>
       <span class="pill"><span id="dot" class="dot"></span> <span id="connlbl">Online</span></span>
     </div>
   </div>
@@ -220,7 +222,7 @@
   <!-- FORM VIEW -->
   <section id="viewForm">
     <div id="draftBanner" class="banner" style="display:none;background:rgba(46,139,111,.14);border-color:var(--synced);color:var(--synced)">
-      <div style="display:flex;align-items:center;justify-space-between;gap:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
         <span id="draftMsg">Restored saved draft</span>
         <button type="button" class="link" id="discardDraftBtn" style="color:var(--offline);margin-left:auto">Discard draft</button>
       </div>
@@ -237,20 +239,24 @@
     <div class="card">
       <h2 class="sec">Aircraft & Flight</h2>
       <div class="grid2">
-        <div><label class="fld">Aircraft Registration</label>
-          <select id="reg">
-            <option value="">Select aircraft…</option>
-            <option>5N-IZA</option>
-            <option>P4-ADTW</option>
-            <option>P4-AA</option>
-            <option>P4-ORJ</option>
+        <div><label class="fld">Fleet Series</label>
+          <select id="fleet">
+            <option value="">Select fleet…</option>
+            <option value="Gulfstream">Gulfstream</option>
+            <option value="Hawker">Hawker</option>
+            <option value="Challenger">Challenger</option>
           </select>
         </div>
-        <div><label class="fld">Date</label><input id="date" type="date"></div>
+        <div><label class="fld">Aircraft Registration</label>
+          <select id="reg" disabled>
+            <option value="">Select aircraft…</option>
+          </select>
+        </div>
       </div>
-      <div class="grid2" style="margin-top:10px">
-        <div><label class="fld">TSN (Hours)</label><input id="tsn" type="number" step="any" min="0" placeholder="e.g. 4120.5" autocomplete="off"></div>
-        <div><label class="fld">CSN (Cycles)</label><input id="csn" type="number" step="1" min="0" placeholder="e.g. 2850" autocomplete="off"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:10px">
+        <div><label class="fld">Date</label><input id="date" type="date"></div>
+        <div><label class="fld">TSN (Hours)</label><input id="tsn" type="number" step="any" min="0" placeholder="4120.5" autocomplete="off"></div>
+        <div><label class="fld">CSN (Cycles)</label><input id="csn" type="number" step="1" min="0" placeholder="2850" autocomplete="off"></div>
       </div>
     </div>
 
@@ -337,6 +343,7 @@
   <button class="btn primary" id="syncBtn">Sync now</button>
 </div>
 
+<script src="js/fleets.js"></script>
 <script>
 /* ============================================================
    CONFIG — the only two lines you change to go to production
@@ -345,75 +352,8 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v19"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v23"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
-
-/* ---- The checklist, taken verbatim from the Flybird GIV form ---- */
-const CHECKLIST = [
- ["Documentation & Certification (NCAR Compliance)",[
-   "Aircraft Technical Log (ATL) – onboard and updated.",
-   "Review of previous defect entries – rectified or deferred per MEL/CDL.",
-   "Aircraft documents folder – checked and confirmed updated with all required documents.",
-   "Certificate of Airworthiness (C of A) and ARC validity confirmed.",
-   "Flight Manual, MEL, QRH, checklists – present and accessible.",
-   "Mandatory equipment (ELT, CVR, FDR, etc.) – operable.",
-   "Debrief incoming crew for reported discrepancies (postflight).",
-   "Brief outgoing crew on aircraft status and deferred items (Preflight)."]],
- ["Technical Additions (Gulfstream GIV Manuals)",[
-   "APU oil level checked per GIV AMM 49-00-00.",
-   "APU run log and general area – soot, leaks, panel integrity.",
-   "Avionics cooling fan operation verified (GIV MM 31-50-00).",
-   "Cargo bay smoke detector and fire suppression system (if installed).",
-   "FOD inspection of ramp around aircraft – completed.",
-   "Tool and rag control accounted for."]],
- ["Nose Section",[
-   "Pitot static tubes – Condition and obstruction.",
-   "Windshield and windows – Condition & security.",
-   "Nose gear components – Security and integrity.",
-   "Tires pressure and condition.",
-   "Radome – Check radar switch & security."]],
- ["Fuselage",[
-   "Outflow and dump valves – Visual check.",
-   "Oxygen system – Pressure and vent status.",
-   "Access doors/panels – Left and right secured.",
-   "Antennas and AOA probes – Condition.",
-   "General area – Cleanliness and signs of leaks."]],
- ["Wings",[
-   "Flaps and rollers – Check for damage.",
-   "Fuel caps and vent covers – Secure and clear.",
-   "Static discharge wicks – Present and secure.",
-   "Wing leading edges and winglets – Condition and security.",
-   "Check for fuel leaks on upper and lower surfaces."]],
- ["Engine and Pylon",[
-   "Intake/exhaust covers – Removed; check for FOD.",
-   "Engine oil levels and quantity added.",
-   "Engines/accessories – Security and leaks.",
-   "Cowling latches and doors – Secure.",
-   "Thrust reversers – Normal position."]],
- ["Main Wheel Wells",[
-   "Main tire pressures and condition.",
-   "Oleo strut height and cleanliness.",
-   "Brakes – Damage, leaks and condition.",
-   "Fuel lines and pump connectors – Condition and leaks.",
-   "Utility lights, pump connectors – Operational status."]],
- ["Cockpit & Avionics",[
-   "Circuit breakers – Depressed.",
-   "Flight documentation – Present and updated.",
-   "Flight & engine controls – Direction & travel.",
-   "Safety systems – Warning lights, fire detectors, etc.",
-   "Cockpit and equipment – Secured and clean."]],
- ["Entrance & Cabin",[
-   "Circuit breakers and electronic rack – Checked.",
-   "Emergency exits, lights, and smoke evacuation knob.",
-   "Cabin configuration and ballast – Secure.",
-   "Cabin area and baggage door – Clean and secured."]],
- ["Final (Just Prior to Departure)",[
-   "Safety pins (gear and door valves) – Removed.",
-   "Nose strut scissor pin – Installed.",
-   "Weight-on-wheel switches – Clear.",
-   "All service items completed and signed off.",
-   "Pre-dispatch inspection logbook entries recorded."]]
-];
 
 /* ---------------- Durable storage (IndexedDB + fallback) ---------------- */
 const Store = (() => {
@@ -421,7 +361,7 @@ const Store = (() => {
   function open(){
     return new Promise(res=>{
       try{
-        const r=indexedDB.open("flybird-preflight",3);
+        const r=indexedDB.open("flybird-preflight",5);
         r.onupgradeneeded=e=>{
           const d=e.target.result;
           if(!d.objectStoreNames.contains("subs")) d.createObjectStore("subs",{keyPath:"id"});
@@ -483,19 +423,52 @@ const Store = (() => {
   }
   async function saveDraft(key, draftObj){
     const record={key, ...draftObj, updatedAt:new Date().toISOString()};
-    if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("drafts","readwrite");
-      tx.objectStore("drafts").put(record);tx.oncomplete=()=>ok();tx.onerror=()=>no();});}
     memDrafts[key]=record;
+    try { localStorage.setItem("flybird_draft_" + key, JSON.stringify(record)); } catch(e){}
+    if(usingIDB){
+      return new Promise((ok)=>{
+        try {
+          const tx=db.transaction("drafts","readwrite");
+          tx.objectStore("drafts").put(record);
+          tx.oncomplete=()=>ok();
+          tx.onerror=()=>ok();
+        } catch(e) { ok(); }
+      });
+    }
   }
   async function getDraft(key){
-    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("drafts","readonly");
-      const g=tx.objectStore("drafts").get(key); g.onsuccess=()=>ok(g.result||null); g.onerror=()=>ok(null);});}
-    return memDrafts[key]||null;
+    let res = null;
+    if(usingIDB){
+      res = await new Promise(ok=>{
+        try {
+          const tx=db.transaction("drafts","readonly");
+          const g=tx.objectStore("drafts").get(key);
+          g.onsuccess=()=>ok(g.result||null);
+          g.onerror=()=>ok(null);
+        } catch(e) { ok(null); }
+      });
+    }
+    if(!res){
+      try {
+        const ls = localStorage.getItem("flybird_draft_" + key);
+        if(ls) res = JSON.parse(ls);
+      } catch(e){}
+    }
+    return res || memDrafts[key] || null;
   }
   async function clearDraft(key){
-    if(usingIDB){return new Promise(ok=>{const tx=db.transaction("drafts","readwrite");
-      tx.objectStore("drafts").delete(key); tx.oncomplete=()=>ok(); tx.onerror=()=>ok();});}
     delete memDrafts[key];
+    try { localStorage.removeItem("flybird_draft_" + key); } catch(e){}
+    if(usingIDB){
+      return new Promise(ok=>{
+        try {
+          const tx=db.transaction("drafts","readwrite");
+          tx.objectStore("drafts").delete(key);
+          tx.oncomplete=()=>ok();
+          tx.onerror=()=>ok();
+        } catch(e) { ok(); }
+      });
+    }
   }
   async function setAuth(obj){
     if(usingIDB){return new Promise((ok,no)=>{const tx=db.transaction("auth","readwrite");
@@ -522,6 +495,7 @@ const Store = (() => {
 /* ---------------- App state ---------------- */
 const marks = {};   // key `${s}-${i}-eng|tech` -> bool
 const comments = {}; // key `${s}-${i}` -> per-item note text
+const metaValues = {}; // key `${s}-${i}` -> per-item meta input
 let images = [];    // array of compressed JPEG data URLs
 let voiceData = null, voiceMime = null;
 let forceOffline = false;
@@ -544,6 +518,31 @@ function online(){return navigator.onLine && !forceOffline;}
 let currentReg = "";
 let autoSaveTimer = null;
 let isRestoringDraft = false;
+let draftPillTimer = null;
+
+function setDraftPill(show, text = "", autoFade = false) {
+  const p = $("#draftPill");
+  if (!p) return;
+  clearTimeout(draftPillTimer);
+  if (!show) {
+    p.style.display = "none";
+    return;
+  }
+  p.textContent = text;
+  p.style.display = "inline-block";
+  if (text.includes("Saving")) {
+    p.style.color = "var(--gold-deep)";
+    p.style.background = "rgba(186,117,23,.18)";
+  } else {
+    p.style.color = "var(--synced)";
+    p.style.background = "rgba(46,139,111,.18)";
+  }
+  if (autoFade) {
+    draftPillTimer = setTimeout(() => {
+      p.style.display = "none";
+    }, 2500);
+  }
+}
 
 function activeDraftKey(regVal) {
   const r = (regVal !== undefined ? regVal : ($("#reg") ? $("#reg").value : "")).trim();
@@ -565,6 +564,7 @@ function getFormDraftPayload() {
     } catch (_) {}
   }
   return {
+    fleet: $("#fleet") ? $("#fleet").value : "",
     registration: $("#reg") ? $("#reg").value : "",
     tsn: $("#tsn") ? $("#tsn").value.trim() : "",
     csn: $("#csn") ? $("#csn").value.trim() : "",
@@ -574,6 +574,7 @@ function getFormDraftPayload() {
     checkType, checkColor, airworthy,
     marks: { ...marks },
     comments: { ...comments },
+    metaValues: { ...metaValues },
     images: [...images],
     voiceData, voiceMime,
     signed: signed && sigHasInk(),
@@ -590,14 +591,30 @@ async function saveCurrentDraft() {
   const key = activeDraftKey();
   if (isBlank) {
     await Store.clearDraft(key);
+    if (key === "draft_unassigned" || (currentReg && key === `draft_${currentReg}`)) {
+      await Store.clearDraft("draft_last_active");
+    }
     const db = $("#draftBanner"); if (db) db.style.display = "none";
+    setDraftPill(false);
     return;
   }
+  setDraftPill(true, "Saving…");
   await Store.saveDraft(key, payload);
+  if (payload.registration) {
+    await Store.saveDraft("draft_last_active", {
+      draftKey: key,
+      fleet: payload.fleet,
+      reg: payload.registration,
+      updatedAt: new Date().toISOString()
+    });
+  }
+  setDraftPill(true, "Draft saved", true);
 }
 
 function scheduleAutoSave() {
+  if (isRestoringDraft) return;
   clearTimeout(autoSaveTimer);
+  setDraftPill(true, "Saving…");
   autoSaveTimer = setTimeout(saveCurrentDraft, 500);
 }
 
@@ -609,8 +626,16 @@ async function restoreFormFromDraft(d) {
       const b = document.querySelector(`.ctype[data-ct="${d.checkType}"]`);
       if (b) applyCheckType(b);
     }
+    if (d.fleet !== undefined && $("#fleet")) {
+      $("#fleet").value = d.fleet;
+      populateRegDropdown(d.fleet);
+    }
     if (d.registration !== undefined && $("#reg")) $("#reg").value = d.registration;
     currentReg = $("#reg") ? $("#reg").value.trim() : "";
+
+    // Render the checklist template for this fleet so the DOM has all sections, chips, notes, and meta-entries
+    renderSections();
+
     if (d.tsn !== undefined && $("#tsn")) $("#tsn").value = d.tsn;
     if (d.csn !== undefined && $("#csn")) $("#csn").value = d.csn;
     if (d.date !== undefined && $("#date")) $("#date").value = d.date;
@@ -647,8 +672,16 @@ async function restoreFormFromDraft(d) {
       }
     });
 
+    Object.keys(metaValues).forEach(k => delete metaValues[k]);
+    if (d.metaValues) Object.assign(metaValues, d.metaValues);
+    document.querySelectorAll(".meta-input").forEach(i => {
+      const key = i.dataset.mk;
+      i.value = metaValues[key] || "";
+    });
+
     updateProgress();
 
+    // Rebuild media UI previews safely without touching <input type="file"> elements
     images = Array.isArray(d.images) ? [...d.images] : [];
     renderThumbs();
 
@@ -663,12 +696,16 @@ async function restoreFormFromDraft(d) {
       }
     }
 
-    $("#clearSig").click();
+    const c = $("#sig");
+    if (sigCtx && c && c.width && c.height) {
+      sigCtx.clearRect(0, 0, c.width, c.height);
+      signed = false;
+      $("#sighint").style.display = "grid";
+    }
     if (d.signature) {
       const img = new Image();
       img.onload = () => {
-        const c = $("#sig");
-        if (sigCtx && c.width && c.height) {
+        if (sigCtx && c && c.width && c.height) {
           sigCtx.drawImage(img, 0, 0, c.width / devicePixelRatio, c.height / devicePixelRatio);
           signed = true; $("#sighint").style.display = "none";
         }
@@ -689,9 +726,48 @@ async function restoreFormFromDraft(d) {
   }
 }
 
+function populateRegDropdown(fleet) {
+  const regSel = $("#reg");
+  if(!regSel) return;
+  regSel.innerHTML = '<option value="">Select aircraft…</option>';
+  if(!fleet || !FLEET_REGS[fleet]) {
+    regSel.disabled = true;
+    return;
+  }
+  FLEET_REGS[fleet].forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r; opt.textContent = r;
+    regSel.appendChild(opt);
+  });
+  regSel.disabled = false;
+}
+
+if($("#fleet")) $("#fleet").addEventListener("change", async (e) => {
+  const f = e.target.value;
+  if (currentReg) {
+    const oldKey = activeDraftKey(currentReg);
+    const oldPayload = getFormDraftPayload();
+    oldPayload.registration = currentReg;
+    await Store.saveDraft(oldKey, oldPayload);
+  }
+  populateRegDropdown(f);
+  $("#reg").value = "";
+  currentReg = "";
+  resetForm(false);
+  $("#fleet").value = f;
+  populateRegDropdown(f);
+  renderSections();
+  const db = $("#draftBanner"); if (db) db.style.display = "none";
+});
+
 async function handleAircraftChange() {
   const newReg = $("#reg").value.trim();
-  await saveCurrentDraft();
+  if (currentReg && currentReg !== newReg) {
+    const oldKey = activeDraftKey(currentReg);
+    const oldPayload = getFormDraftPayload();
+    oldPayload.registration = currentReg;
+    await Store.saveDraft(oldKey, oldPayload);
+  }
 
   currentReg = newReg;
   const newKey = activeDraftKey(newReg);
@@ -701,9 +777,13 @@ async function handleAircraftChange() {
     await restoreFormFromDraft(existing);
   } else {
     const regVal = $("#reg").value;
+    const fleetVal = $("#fleet").value;
     resetForm(false);
+    $("#fleet").value = fleetVal;
+    populateRegDropdown(fleetVal);
     $("#reg").value = regVal;
     currentReg = regVal.trim();
+    renderSections();
     const db = $("#draftBanner"); if (db) db.style.display = "none";
   }
 }
@@ -711,26 +791,38 @@ async function handleAircraftChange() {
 /* ---------------- Render checklist ---------------- */
 function renderSections(){
   const wrap=$("#sections"); wrap.innerHTML="";
-  CHECKLIST.forEach((sec,si)=>{
+  const fv = $("#fleet") ? $("#fleet").value : "";
+  const tpl = FLEET_TEMPLATES[fv] || [];
+  tpl.forEach((sec,si)=>{
     const d=document.createElement("details"); d.className="acc"; if(si===0)d.open=true;
     d.innerHTML=`<summary>
         <span class="snum">${si+1}</span>
-        <span class="stitle">${sec[0]}</span>
-        <span class="sprog" id="prog-${si}">0/${sec[1].length}</span>
+        <span class="stitle">${sec.title}</span>
+        <span class="sprog" id="prog-${si}">0/${sec.items.length}</span>
         <span class="chev">▶</span>
       </summary><div class="items" id="items-${si}"></div>`;
     wrap.appendChild(d);
     const box=d.querySelector(`#items-${si}`);
-    sec[1].forEach((desc,ii)=>{
+    sec.items.forEach((itemObj,ii)=>{
       const key=`${si}-${ii}`;
       const row=document.createElement("div"); row.className="item";
+      let metaHtml = "";
+      if(itemObj.meta_entry) {
+        metaHtml = `<div style="margin-top:8px"><label class="fld" style="color:var(--gold-deep)">${itemObj.meta_entry.label}</label>
+          <input type="${itemObj.meta_entry.type==='due_date'?'date':'number'}" class="meta-input" data-mk="${key}" placeholder="${itemObj.meta_entry.target_value||''}">
+        </div>`;
+      }
+      let dailyHtml = itemObj.is_daily_only ? `<span style="font-size:10px;background:var(--gold);color:#000;padding:2px 4px;border-radius:4px;margin-left:6px;vertical-align:middle;font-weight:700">DAILY ONLY</span>` : "";
+      let oemNoteHtml = itemObj.note_text ? `<div class="item-oem-note"><strong>NOTE:</strong> ${itemObj.note_text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>` : "";
+      
       row.innerHTML=`<div class="itemtop">
-          <div class="idesc">${desc}</div>
+          <div class="idesc">${itemObj.description}${dailyHtml}${oemNoteHtml}</div>
           <div class="marks">
             <div class="chip" data-k="${si}-${ii}-eng">ENG</div>
             <div class="chip" data-k="${si}-${ii}-tech">TECH</div>
           </div>
         </div>
+        ${metaHtml}
         <button type="button" class="notebtn" data-note="${key}">＋ Add note</button>
         <textarea class="notebox" data-nb="${key}" style="display:none" placeholder="Note for this item"></textarea>`;
       box.appendChild(row);
@@ -752,11 +844,17 @@ function renderSections(){
     else { btn.textContent="＋ Add note"; btn.classList.remove("has"); }
     scheduleAutoSave();
   }));
+  wrap.querySelectorAll(".meta-input").forEach(i=>i.addEventListener("input",()=>{
+    const key=i.dataset.mk; metaValues[key]=i.value.trim();
+    scheduleAutoSave();
+  }));
 }
 function updateProgress(){
-  CHECKLIST.forEach((sec,si)=>{
-    let n=0; sec[1].forEach((_,ii)=>{ if(marks[`${si}-${ii}-eng`]||marks[`${si}-${ii}-tech`]) n++; });
-    const el=$("#prog-"+si); if(el) el.textContent=`${n}/${sec[1].length}`;
+  const fv = $("#fleet") ? $("#fleet").value : "";
+  const tpl = FLEET_TEMPLATES[fv] || [];
+  tpl.forEach((sec,si)=>{
+    let n=0; sec.items.forEach((_,ii)=>{ if(marks[`${si}-${ii}-eng`]||marks[`${si}-${ii}-tech`]) n++; });
+    const el=$("#prog-"+si); if(el) el.textContent=`${n}/${sec.items.length}`;
   });
 }
 
@@ -1038,21 +1136,26 @@ $("#submitBtn").addEventListener("click",async()=>{
   const signaturePng=flat.toDataURL("image/png");
   flat.width=0; flat.height=0; // release canvas buffer
 
+  const fv = $("#fleet").value;
+  const tpl = FLEET_TEMPLATES[fv] || [];
   const items=[];
-  CHECKLIST.forEach((sec,si)=>sec[1].forEach((desc,ii)=>items.push({
-    section:sec[0], item:desc,
+  tpl.forEach((sec,si)=>sec.items.forEach((itemObj,ii)=>items.push({
+    section:sec.title, item:itemObj.description,
     eng:!!marks[`${si}-${ii}-eng`], tech:!!marks[`${si}-${ii}-tech`],
-    comment:comments[`${si}-${ii}`]||""
+    comment:comments[`${si}-${ii}`]||"",
+    meta_label:itemObj.meta_entry?itemObj.meta_entry.label:"",
+    meta_val:itemObj.meta_entry?(metaValues[`${si}-${ii}`]||""):""
   })));
   const rec={
     id:uuid(), status:"pending", createdAt:new Date().toISOString(),
     checkType, airworthy, unserviceableReason:(airworthy==="Unserviceable"?awReason:""),
-    registration:reg, tsn:$("#tsn").value.trim(), csn:$("#csn").value.trim(), date:$("#date").value,
+    fleet:fv, registration:reg, tsn:$("#tsn").value.trim(), csn:$("#csn").value.trim(), date:$("#date").value,
     engineer:auth.name, authToken:auth.token,
     remarks:$("#remarks").value.trim(),
     signature:signaturePng,
     images:[...images], voice:voiceData, voiceMime:voiceMime, items
   };
+  rec.htmlDoc = generateHTMLDocument(rec);
 
   const approxBytes = new Blob([JSON.stringify(rec)]).size;
   const SAFE_LIMIT = 3.8 * 1024 * 1024;
@@ -1063,9 +1166,14 @@ $("#submitBtn").addEventListener("click",async()=>{
 
   const activeKey = activeDraftKey(reg);
   await Store.save(rec);
+  clearTimeout(autoSaveTimer);
+  isRestoringDraft = true;
   await Store.clearDraft(activeKey);
+  await Store.clearDraft("draft_unassigned");
+  await Store.clearDraft("draft_last_active");
   await refreshOutbox();
-  resetForm();
+  resetForm(true);
+  isRestoringDraft = false;
   goTo("out");
   attemptSync();
 });
@@ -1166,10 +1274,9 @@ async function refreshOutbox(){
 }
 
 /* ---------------- Download a submission as a self-contained HTML file ---------------- */
-async function downloadRecord(id){
-  const rec=await Store.get(id); if(!rec) return;
+function generateHTMLDocument(rec) {
   const esc=s=>String(s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
-  const rows=rec.items.map(i=>`<tr><td>${esc(i.item)}${i.comment?`<br><span style="color:#555;font-size:12px">↳ ${esc(i.comment)}</span>`:""}</td><td style="text-align:center">${i.eng?"✓":""}</td><td style="text-align:center">${i.tech?"✓":""}</td></tr>`).join("");
+  const rows=rec.items.map(i=>`<tr><td>${esc(i.item)}${i.meta_label?`<br><span style="color:#C9A84C;font-size:12px"><b>${esc(i.meta_label)}:</b> ${esc(i.meta_val)||"N/A"}</span>`:""}${i.comment?`<br><span style="color:#555;font-size:12px">↳ ${esc(i.comment)}</span>`:""}</td><td style="text-align:center">${i.eng?"✓":""}</td><td style="text-align:center">${i.tech?"✓":""}</td></tr>`).join("");
   const imgs=(rec.images||[]).map(src=>`<img src="${src}" style="max-width:100%;border:1px solid #ccc;border-radius:8px;margin:6px 0">`).join("");
   const remarks=rec.remarks?`<div style="border-left:4px solid #C9A84C;background:#FAF6EC;padding:10px 14px;margin:12px 0"><b>General Remarks:</b><br>${esc(rec.remarks).replace(/\n/g,"<br>")}</div>`:"";
   const voice=rec.voice?`<p><b>Voice note:</b></p><audio controls src="${rec.voice}" style="width:100%"></audio>`:"";
@@ -1180,13 +1287,19 @@ async function downloadRecord(id){
   <body style="font-family:Arial,sans-serif;color:#0d1526;max-width:760px;margin:20px auto;padding:0 14px">
   <h2 style="color:#071A5A;margin-bottom:4px">Flybird ${esc(rec.checkType||"Pre-flight")} Checklist</h2>
   <p style="margin:0 0 10px"><b>Inspection Type:</b> <span style="display:inline-block;background:#071A5A;color:#fff;padding:2px 10px;border-radius:12px;font-weight:700;font-size:13px">${esc(rec.checkType||"Pre-flight")}</span></p>
-  <p><b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN:</b> ${rec.tsn ? esc(rec.tsn) + " hrs" : "—"} &nbsp; <b>CSN:</b> ${rec.csn ? esc(rec.csn) + " cycles" : "—"} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
+  <p><b>Fleet:</b> ${esc(rec.fleet||"—")} &nbsp; <b>Registration:</b> ${esc(rec.registration)} &nbsp; <b>TSN:</b> ${rec.tsn ? esc(rec.tsn) + " hrs" : "—"} &nbsp; <b>CSN:</b> ${rec.csn ? esc(rec.csn) + " cycles" : "—"} &nbsp; <b>Date:</b> ${esc(rec.date)}</p>
   <p><b>Engineer:</b> ${esc(rec.engineer)} &nbsp; <b>ID:</b> ${esc(rec.id)}</p>
   ${awBanner}
   <table style="border-collapse:collapse;width:100%;font-size:13px" border="1" cellpadding="5">
   <tr style="background:#071A5A;color:#fff"><th style="text-align:left">Item</th><th>ENG</th><th>TECH</th></tr>${rows}</table>
   ${remarks}${voice}${imgs?`<p><b>Photos:</b></p>${imgs}`:""}${sig}
   </body></html>`;
+  return doc;
+}
+
+async function downloadRecord(id){
+  const rec=await Store.get(id); if(!rec) return;
+  const doc = generateHTMLDocument(rec);
   const blob=new Blob([doc],{type:"text/html"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
@@ -1218,40 +1331,71 @@ $("#tabOut").addEventListener("click",()=>goTo("out"));
 
 /* ---------------- Reset ---------------- */
 function resetForm(clearReg = true){
-  ["tsn","csn","remarks","awReason"].forEach(id=>$("#"+id).value="");
-  if (clearReg) {
-    $("#reg").selectedIndex=0;
-    currentReg = "";
+  const prevRestoring = isRestoringDraft;
+  isRestoringDraft = true;
+  clearTimeout(autoSaveTimer);
+  try {
+    ["tsn","csn","remarks","awReason"].forEach(id=>$("#"+id).value="");
+    if (clearReg) {
+      $("#fleet").selectedIndex=0;
+      $("#reg").innerHTML='<option value="">Select aircraft…</option>';
+      $("#reg").disabled=true;
+      currentReg = "";
+      renderSections();
+    }
+    if (!$("#date").value) $("#date").valueAsDate=new Date();
+    Object.keys(marks).forEach(k=>delete marks[k]);
+    Object.keys(comments).forEach(k=>delete comments[k]);
+    Object.keys(metaValues).forEach(k=>delete metaValues[k]);
+    document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
+    document.querySelectorAll(".notebox").forEach(t=>{ t.value=""; t.style.display="none"; });
+    document.querySelectorAll(".notebtn").forEach(b=>{ b.textContent="＋ Add note"; b.classList.remove("has"); });
+    document.querySelectorAll(".meta-input").forEach(i=>i.value="");
+    airworthy=null;
+    document.querySelectorAll(".awbtn").forEach(x=>x.classList.remove("on"));
+    $("#awReasonWrap").style.display="none";
+    updateProgress();
+
+    const c=$("#sig");
+    if (sigCtx && c && c.width && c.height) {
+      sigCtx.clearRect(0,0,c.width,c.height);
+      signed=false;
+      $("#sighint").style.display="grid";
+    }
+    images=[]; renderThumbs();
+    const vp=$("#voicePlay"); if (vp) { vp.src=""; vp.style.display="none"; }
+    $("#recClear").style.display="none";
+    voiceData=null; voiceMime=null; stopRec();
+    const banner = $("#draftBanner"); if (banner) banner.style.display = "none";
+    setDraftPill(false);
+  } finally {
+    isRestoringDraft = prevRestoring;
   }
-  $("#date").valueAsDate=new Date();
-  Object.keys(marks).forEach(k=>delete marks[k]);
-  Object.keys(comments).forEach(k=>delete comments[k]);
-  document.querySelectorAll(".chip.on").forEach(c=>c.classList.remove("on"));
-  document.querySelectorAll(".notebox").forEach(t=>{ t.value=""; t.style.display="none"; });
-  document.querySelectorAll(".notebtn").forEach(b=>{ b.textContent="＋ Add note"; b.classList.remove("has"); });
-  airworthy=null;
-  document.querySelectorAll(".awbtn").forEach(x=>x.classList.remove("on"));
-  $("#awReasonWrap").style.display="none";
-  updateProgress();
-  $("#clearSig").click();
-  images=[]; renderThumbs();
-  $("#recClear").click(); stopRec();
-  const banner = $("#draftBanner"); if (banner) banner.style.display = "none";
 }
 $("#resetBtn").addEventListener("click",async()=>{
   if(confirm("Clear this form?")){
+    clearTimeout(autoSaveTimer);
+    isRestoringDraft = true;
     const key = activeDraftKey();
     await Store.clearDraft(key);
-    resetForm();
+    await Store.clearDraft("draft_unassigned");
+    await Store.clearDraft("draft_last_active");
+    resetForm(true);
+    isRestoringDraft = false;
   }
 });
 const discardBtn = $("#discardDraftBtn");
 if (discardBtn) {
   discardBtn.addEventListener("click", async () => {
     if (confirm("Discard this auto-saved draft?")) {
+      clearTimeout(autoSaveTimer);
+      isRestoringDraft = true;
       const key = activeDraftKey();
       await Store.clearDraft(key);
-      resetForm();
+      await Store.clearDraft("draft_unassigned");
+      await Store.clearDraft("draft_last_active");
+      resetForm(true);
+      isRestoringDraft = false;
     }
   });
 }
@@ -1283,9 +1427,18 @@ if (discardBtn) {
   }
 
   // Auto-restore initial draft if available
-  const initialReg = regSel ? regSel.value.trim() : "";
-  currentReg = initialReg;
-  const initialDraft = (await Store.getDraft(activeDraftKey(initialReg))) || (await Store.getDraft("draft_unassigned"));
+  let initialDraft = null;
+  const lastActive = await Store.getDraft("draft_last_active");
+  if (lastActive) {
+    const target = lastActive.draftKey || lastActive.key;
+    if (target && target !== "draft_last_active") {
+      initialDraft = await Store.getDraft(target);
+    }
+  }
+  if (!initialDraft) {
+    const initialReg = regSel ? regSel.value.trim() : "";
+    initialDraft = (await Store.getDraft(activeDraftKey(initialReg))) || (await Store.getDraft("draft_unassigned"));
+  }
   if (initialDraft) {
     await restoreFormFromDraft(initialDraft);
   }
