@@ -510,232 +510,842 @@ const FLEET_TEMPLATES = {
   ],
   "Hawker": [
     {
-      title: "General",
-      items: [
-        { description: "Make sure that any defects reported in the technical log or Pilot's Report have been cleared or cleared for flight in accordance with the Minimum Equipment List." },
-        { description: "Assure that Post Flight Inspections have been accomplished. Do not remove gear pins." },
-        { description: "Remove external covers, plugs, guards, internal control locks (if installed) and stow correctly Ground Handling Check List (Part III, Para. C)." }
+      "section_id": "HWK-GEN",
+      "title": "General",
+      "items": [
+        {
+          "id": "HWK-GEN-01",
+          "task_number": "1",
+          "description": "Make sure that any defects reported in the technical log or Pilot's Report have been cleared or cleared for flight in accordance with the Minimum Equipment List."
+        },
+        {
+          "id": "HWK-GEN-02",
+          "task_number": "2",
+          "description": "Assure that Post Flight Inspections have been accomplished.",
+          "note_text": "Do not remove gear pins."
+        },
+        {
+          "id": "HWK-GEN-03",
+          "task_number": "3",
+          "description": "Remove external covers, plugs, guards, internal control locks (if installed) and stow correctly Ground Handling Check List (Part III, Para. C)."
+        }
       ]
     },
     {
-      title: "Left Nose and Fuselage",
-      items: [
-        { description: "Make sure the stall detector vane moves freely through the full range of travel. Vane movement must be smooth and damped." },
-        { description: "Check pitot tube condition, cover removed and hole clear.", is_daily_only: true },
-        { description: "Check static plate and static ports for condition; free from dents, corrosion, contaminants and obstructions." },
-        { description: "Check OAT sensor probe for condition." },
-        { description: "Check ice detector for condition and rotor movement." },
-        { description: "Check external fuselage and flight compartment windows for damage. Check windshield weather seals for condition." },
-        { description: "Check nose skin, forward of static plate, free from dents, paint bubbles and sealant bulges." },
-        { description: "Make sure avionics access door is correctly seated and secure." },
-        { description: "Check radome for condition and security." },
-        { description: "Check condition of nose taxi light lens and bulbs (L & R)." }
+      "section_id": "HWK-LNF",
+      "title": "Left Nose and Fuselage",
+      "items": [
+        {
+          "id": "HWK-LNF-01",
+          "task_number": "1",
+          "description": "Make sure the stall detector vane moves freely through the full range of travel. Vane movement must be smooth and damped."
+        },
+        {
+          "id": "HWK-LNF-02",
+          "task_number": "2",
+          "description": "Check pitot tube condition, cover removed and hole clear.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-LNF-03",
+          "task_number": "3",
+          "description": "Check static plate and static ports for condition; free from dents, corrosion, contaminants and obstructions."
+        },
+        {
+          "id": "HWK-LNF-04",
+          "task_number": "4",
+          "description": "Check OAT sensor probe for condition."
+        },
+        {
+          "id": "HWK-LNF-05",
+          "task_number": "5",
+          "description": "Check ice detector for condition and rotor movement."
+        },
+        {
+          "id": "HWK-LNF-06",
+          "task_number": "6",
+          "description": "Check external fuselage and flight compartment windows for damage. Check windshield weather seals for condition."
+        },
+        {
+          "id": "HWK-LNF-07",
+          "task_number": "7",
+          "description": "Check nose skin, forward of static plate, free from dents, paint bubbles and sealant bulges."
+        },
+        {
+          "id": "HWK-LNF-08",
+          "task_number": "8",
+          "description": "Make sure avionics access door is correctly seated and secure."
+        },
+        {
+          "id": "HWK-LNF-09",
+          "task_number": "9",
+          "description": "Check radome for condition and security."
+        },
+        {
+          "id": "HWK-LNF-10",
+          "task_number": "10",
+          "description": "Check condition of nose taxi light lens and bulbs (L & R)."
+        }
       ]
     },
     {
-      title: "Nose Landing Gear & Bay",
-      items: [
-        { description: "Make sure the nose landing gear ground lock is installed in the nose landing gear and is secure (check overall condition of NLG bay)." },
-        { description: "Make sure there is no visible damage to doors, nose gear assembly or wheels." },
-        { description: "Check the nose gear bay to make sure there is no fluid leakage." },
-        { description: "Check condition of wiring and hoses." },
-        { description: "Make sure that the auxiliary hydraulic system reservoir has been checked.", is_daily_only: true },
-        { description: "Check nose landing gear doors are closed and manual release is secure." },
-        { description: "Visually check the strut for normal condition.", is_daily_only: true },
-        { description: "Check tires for condition.", is_daily_only: true }
+      "section_id": "HWK-NLG",
+      "title": "Nose Landing Gear & Bay",
+      "items": [
+        {
+          "id": "HWK-NLG-01",
+          "task_number": "1",
+          "description": "Make sure the nose landing gear ground lock is installed in the nose landing gear and is secure (check overall condition of NLG bay)."
+        },
+        {
+          "id": "HWK-NLG-02",
+          "task_number": "2",
+          "description": "Make sure there is no visible damage to doors, nose gear assembly or wheels."
+        },
+        {
+          "id": "HWK-NLG-03",
+          "task_number": "3",
+          "description": "Check the nose gear bay to make sure there is no fluid leakage."
+        },
+        {
+          "id": "HWK-NLG-04",
+          "task_number": "4",
+          "description": "Check condition of wiring and hoses."
+        },
+        {
+          "id": "HWK-NLG-05",
+          "task_number": "5",
+          "description": "Make sure that the auxiliary hydraulic system reservoir has been checked.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-NLG-06",
+          "task_number": "6",
+          "description": "Check nose landing gear doors are closed and manual release is secure."
+        },
+        {
+          "id": "HWK-NLG-07",
+          "task_number": "7",
+          "description": "Visually check the strut for normal condition.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-NLG-08",
+          "task_number": "8",
+          "description": "Check tires for condition.",
+          "is_daily_only": true
+        }
       ]
     },
     {
-      title: "Right Nose & Fuselage",
-      items: [
-        { description: "Check radome for condition & security." },
-        { description: "Make sure avionics access door is correctly seated and secure." },
-        { description: "Check nose skin, forward of static plate, free from dents, corrosion, paint bubbles and sealant bulges." },
-        { description: "Check static plate and static ports for condition, free from dents, corrosion, contaminants and obstructions." },
-        { description: "Check external fuselage & flight compartment windows for damage." },
-        { description: "Check pitot tube condition, cover removed and holes clear.", is_daily_only: true },
-        { description: "Make sure the stall detector vane moves freely through the full range of travel. Vane movement must be smooth and damped." },
-        { description: "Make sure venturi outlet is clear." },
-        { description: "Check SAT sensor for condition." },
-        { description: "Check external fuselage & windows for damage, overwing emergency exit closed and flush with fuselage and dorsal air intake cover removed and intake clear." }
+      "section_id": "HWK-RNF",
+      "title": "Right Nose & Fuselage",
+      "items": [
+        {
+          "id": "HWK-RNF-01",
+          "task_number": "1",
+          "description": "Check radome for condition & security."
+        },
+        {
+          "id": "HWK-RNF-02",
+          "task_number": "2",
+          "description": "Make sure avionics access door is correctly seated and secure."
+        },
+        {
+          "id": "HWK-RNF-03",
+          "task_number": "3",
+          "description": "Check nose skin, forward of static plate, free from dents, corrosion, paint bubbles and sealant bulges."
+        },
+        {
+          "id": "HWK-RNF-04",
+          "task_number": "4",
+          "description": "Check static plate and static ports for condition, free from dents, corrosion, contaminants and obstructions."
+        },
+        {
+          "id": "HWK-RNF-05",
+          "task_number": "5",
+          "description": "Check external fuselage & flight compartment windows for damage."
+        },
+        {
+          "id": "HWK-RNF-06",
+          "task_number": "6",
+          "description": "Check pitot tube condition, cover removed and holes clear.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-RNF-07",
+          "task_number": "7",
+          "description": "Make sure the stall detector vane moves freely through the full range of travel. Vane movement must be smooth and damped."
+        },
+        {
+          "id": "HWK-RNF-08",
+          "task_number": "8",
+          "description": "Make sure venturi outlet is clear."
+        },
+        {
+          "id": "HWK-RNF-09",
+          "task_number": "9",
+          "description": "Check SAT sensor for condition."
+        },
+        {
+          "id": "HWK-RNF-10",
+          "task_number": "10",
+          "description": "Check external fuselage & windows for damage, overwing emergency exit closed and flush with fuselage and dorsal air intake cover removed and intake clear."
+        }
       ]
     },
     {
-      title: "Right Wing",
-      items: [
-        { description: "Make sure that all water has been drained from the center section fuel tank sumps." },
-        { description: "Check condition of the wing ice light lens and bulbs." },
-        { description: "Check the condition of overwing fillet fairing." },
-        { description: "Check the condition of the external structure of the wing to make sure it is clean and undamaged; upper and lower surface (no fuel leaks), leading edge, stall strip, landing and taxi lights (condition of lens and bulbs) and vortilon." },
-        { description: "Make sure the vortex generators are secure and not deformed." },
-        { description: "Check the overwing fuel cap for security." },
-        { description: "Make sure the stall warning system vent (if installed) is clear." },
-        { description: "Make sure the NACA vent is clear." },
-        { description: "Check surge tank vent drain." },
-        { description: "Check condition of strobes and navigation light lens and bulbs/LEDs (if installed)." },
-        { description: "Check condition of wing tip. Check winglet (if installed)." },
-        { description: "Check condition of the aileron aileron trip tab." },
-        { description: "Make sure there are no foreign objects or debris in the aileron shrouds." },
-        { description: "Make sure the aileron moves freely through the full range of travel." },
-        { description: "Check condition of flap and air brakes." },
-        { description: "Check for damaged or missing static wick." }
+      "section_id": "HWK-RWG",
+      "title": "Right Wing",
+      "items": [
+        {
+          "id": "HWK-RWG-01",
+          "task_number": "1",
+          "description": "Make sure that all water has been drained from the center section fuel tank sumps."
+        },
+        {
+          "id": "HWK-RWG-02",
+          "task_number": "2",
+          "description": "Check condition of the wing ice light lens and bulbs."
+        },
+        {
+          "id": "HWK-RWG-03",
+          "task_number": "3",
+          "description": "Check the condition of overwing fillet fairing."
+        },
+        {
+          "id": "HWK-RWG-04",
+          "task_number": "4",
+          "description": "Check the condition of the external structure of the wing to make sure it is clean and undamaged; upper and lower surface (no fuel leaks), leading edge, stall strip, landing and taxi lights (condition of lens and bulbs) and vortilon."
+        },
+        {
+          "id": "HWK-RWG-05",
+          "task_number": "5",
+          "description": "Make sure the vortex generators are secure and not deformed."
+        },
+        {
+          "id": "HWK-RWG-06",
+          "task_number": "6",
+          "description": "Check the overwing fuel cap for security."
+        },
+        {
+          "id": "HWK-RWG-07",
+          "task_number": "7",
+          "description": "Make sure the stall warning system vent (if installed) is clear."
+        },
+        {
+          "id": "HWK-RWG-08",
+          "task_number": "8",
+          "description": "Make sure the NACA vent is clear."
+        },
+        {
+          "id": "HWK-RWG-09",
+          "task_number": "9",
+          "description": "Check surge tank vent drain."
+        },
+        {
+          "id": "HWK-RWG-10",
+          "task_number": "10",
+          "description": "Check condition of strobes and navigation light lens and bulbs/LEDs (if installed)."
+        },
+        {
+          "id": "HWK-RWG-11",
+          "task_number": "11",
+          "description": "Check condition of wing tip. Check winglet (if installed)."
+        },
+        {
+          "id": "HWK-RWG-12",
+          "task_number": "12",
+          "description": "Check condition of the aileron aileron trip tab."
+        },
+        {
+          "id": "HWK-RWG-13",
+          "task_number": "13",
+          "description": "Make sure there are no foreign objects or debris in the aileron shrouds."
+        },
+        {
+          "id": "HWK-RWG-14",
+          "task_number": "14",
+          "description": "Make sure the aileron moves freely through the full range of travel."
+        },
+        {
+          "id": "HWK-RWG-15",
+          "task_number": "15",
+          "description": "Check condition of flap and air brakes."
+        },
+        {
+          "id": "HWK-RWG-16",
+          "task_number": "16",
+          "description": "Check for damaged or missing static wick."
+        }
       ]
     },
     {
-      title: "Right Main Landing Gear",
-      items: [
-        { description: "Make sure main landing gear ground lock is installed in the main landing gear and is secure." },
-        { description: "Visually inspect the side stay components and attachment points for security and make sure there is no visible damage." },
-        { description: "Visually check the strut for normal condition.", is_daily_only: true },
-        { description: "Check tires for condition.", is_daily_only: true },
-        { description: "Make sure there is no visible damage to the fairing and main landing gear doors." },
-        { description: "Check the main gear and inside the main gear bay to make sure there is no fluid leakage." },
-        { description: "Check condition of wiring and hoses." }
+      "section_id": "HWK-RMLG",
+      "title": "Right Main Landing Gear",
+      "items": [
+        {
+          "id": "HWK-RMLG-01",
+          "task_number": "1",
+          "description": "Make sure main landing gear ground lock is installed in the main landing gear and is secure."
+        },
+        {
+          "id": "HWK-RMLG-02",
+          "task_number": "2",
+          "description": "Visually inspect the side stay components and attachment points for security and make sure there is no visible damage."
+        },
+        {
+          "id": "HWK-RMLG-03",
+          "task_number": "3",
+          "description": "Visually check the strut for normal condition.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-RMLG-04",
+          "task_number": "4",
+          "description": "Check tires for condition.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-RMLG-05",
+          "task_number": "5",
+          "description": "Make sure there is no visible damage to the fairing and main landing gear doors."
+        },
+        {
+          "id": "HWK-RMLG-06",
+          "task_number": "6",
+          "description": "Check the main gear and inside the main gear bay to make sure there is no fluid leakage."
+        },
+        {
+          "id": "HWK-RMLG-07",
+          "task_number": "7",
+          "description": "Check condition of wiring and hoses."
+        }
       ]
     },
     {
-      title: "Right Engine and Nacelle",
-      items: [
-        { description: "Check right engine, remove engine cover and make sure there are no visible oil leaks in the engine intake and cowling and free from foreign objects. DO NOT ATTEMPT TO STOP THE FAN BY HOLDING THE BLADES." },
-        { description: "Make sure there is no damage to the fan blades when viewed through the engine intake." },
-        { description: "Check P2T2 sensor clean, undamaged and secure." },
-        { description: "Make sure the starter generator cooling intake and outlet are unobstructed. Check general condition of cowling and latches for damage, vents and drain holes should be clear." },
-        { description: "Check engine oil tank quantity (Part III, Para L) and engine oil filter bypass pin (if installed)." },
-        { description: "Make sure there are no damage to the turbine blades when viewed through the exhaust." },
-        { description: "Make sure there are no visible oil leaks in the engine cowling and the engine exhaust areas." },
-        { description: "Check engine exhaust drain mast clear, no leaks." },
-        { description: "Make sure the pin is removed from the thrust reverser and the TR is stowed and is secure.", is_daily_only: true }
+      "section_id": "HWK-RENG",
+      "title": "Right Engine and Nacelle",
+      "items": [
+        {
+          "id": "HWK-RENG-01",
+          "task_number": "1",
+          "description": "Check right engine, remove engine cover and make sure there are no visible oil leaks in the engine intake and cowling and free from foreign objects.",
+          "note_text": "WARNING: DO NOT ATTEMPT TO STOP THE FAN BY HOLDING THE BLADES IF THE FAN IS WINDMILLING. THE BLADES ARE SHARP. STOP THE FAN BY PUSHING ON THE SPINNER."
+        },
+        {
+          "id": "HWK-RENG-02",
+          "task_number": "2",
+          "description": "Make sure there is no damage to the fan blades when viewed through the engine intake."
+        },
+        {
+          "id": "HWK-RENG-03",
+          "task_number": "3",
+          "description": "Check P2T2 sensor clean, undamaged and secure."
+        },
+        {
+          "id": "HWK-RENG-04",
+          "task_number": "4",
+          "description": "Make sure the starter generator cooling intake and outlet are unobstructed. Check general condition of cowling and latches for damage, vents and drain holes should be clear."
+        },
+        {
+          "id": "HWK-RENG-05",
+          "task_number": "5",
+          "description": "Check engine oil tank quantity (Part III, Para L) and engine oil filter bypass pin (if installed)."
+        },
+        {
+          "id": "HWK-RENG-06",
+          "task_number": "6",
+          "description": "Make sure there are no damage to the turbine blades when viewed through the exhaust."
+        },
+        {
+          "id": "HWK-RENG-07",
+          "task_number": "7",
+          "description": "Make sure there are no visible oil leaks in the engine cowling and the engine exhaust areas."
+        },
+        {
+          "id": "HWK-RENG-08",
+          "task_number": "8",
+          "description": "Check engine exhaust drain mast clear, no leaks."
+        },
+        {
+          "id": "HWK-RENG-09",
+          "task_number": "9",
+          "description": "Make sure the pin is removed from the thrust reverser and the TR is stowed and is secure.",
+          "is_daily_only": true
+        }
       ]
     },
     {
-      title: "Aft Fuselage - Right Side",
-      items: [
-        { description: "Check the APU (if installed) exhaust is unobstructed/damaged.", is_daily_only: true },
-        { description: "Check condition of pressure refueling cap and make sure it is secure. Make sure the pressure refueling door is closed and secured." },
-        { description: "Make sure the ground power unit access door is secure." },
-        { description: "Make sure the oxygen charging port access panel is secure." }
+      "section_id": "HWK-AFR",
+      "title": "Aft Fuselage - Right Side",
+      "items": [
+        {
+          "id": "HWK-AFR-01",
+          "task_number": "1",
+          "description": "Check the APU (if installed) exhaust is unobstructed/damaged.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-AFR-02",
+          "task_number": "2",
+          "description": "Check condition of pressure refueling cap and make sure it is secure. Make sure the pressure refueling door is closed and secured."
+        },
+        {
+          "id": "HWK-AFR-03",
+          "task_number": "3",
+          "description": "Make sure the ground power unit access door is secure."
+        },
+        {
+          "id": "HWK-AFR-04",
+          "task_number": "4",
+          "description": "Make sure the oxygen charging port access panel is secure."
+        }
       ]
     },
     {
-      title: "Empennage (Tail Section)",
-      items: [
-        { description: "Check condition of tail cone and make sure it is secured and locked and the vents are unobstructed." },
-        { description: "Check condition of tailcone strobe and navigation light lenses and bulbs." },
-        { description: "Make sure there is no visible damage to the vertical stabilizer and rudder." },
-        { description: "Make sure there is no visible damage to the horizontal stabilizer and elevator." },
-        { description: "Visually check that vortex generators are present and undamaged (airplanes with winglets only)." },
-        { description: "Check condition of the upper anti-collision light." },
-        { description: "Check condition of static wicks, present and undamaged." }
+      "section_id": "HWK-EMP",
+      "title": "Empennage (Tail Section)",
+      "items": [
+        {
+          "id": "HWK-EMP-01",
+          "task_number": "1",
+          "description": "Check condition of tail cone and make sure it is secured and locked and the vents are unobstructed."
+        },
+        {
+          "id": "HWK-EMP-02",
+          "task_number": "2",
+          "description": "Check condition of tailcone strobe and navigation light lenses and bulbs."
+        },
+        {
+          "id": "HWK-EMP-03",
+          "task_number": "3",
+          "description": "Make sure there is no visible damage to the vertical stabilizer and rudder."
+        },
+        {
+          "id": "HWK-EMP-04",
+          "task_number": "4",
+          "description": "Make sure there is no visible damage to the horizontal stabilizer and elevator."
+        },
+        {
+          "id": "HWK-EMP-05",
+          "task_number": "5",
+          "description": "Visually check that vortex generators are present and undamaged (airplanes with winglets only)."
+        },
+        {
+          "id": "HWK-EMP-06",
+          "task_number": "6",
+          "description": "Check condition of the upper anti-collision light."
+        },
+        {
+          "id": "HWK-EMP-07",
+          "task_number": "7",
+          "description": "Check condition of static wicks, present and undamaged."
+        }
       ]
     },
     {
-      title: "Aft Fuselage - Left Side",
-      items: [
-        { description: "Check ventral tank (if installed) filler cap for security and make sure the ventral tank access door is closed and secure." },
-        { description: "Check ventral tank (if installed) fairing installed and secure." },
-        { description: "Make sure the fire extinguisher pressure relief indication disc for each engine is intact and APU fire extinguisher pressure relief indication disc is intact (if installed)." },
-        { description: "Make sure the APU inlet is clear and unobstructed." }
+      "section_id": "HWK-AFL",
+      "title": "Aft Fuselage - Left Side",
+      "items": [
+        {
+          "id": "HWK-AFL-01",
+          "task_number": "1",
+          "description": "Check ventral tank (if installed) filler cap for security and make sure the ventral tank access door is closed and secure."
+        },
+        {
+          "id": "HWK-AFL-02",
+          "task_number": "2",
+          "description": "Check ventral tank (if installed) fairing installed and secure."
+        },
+        {
+          "id": "HWK-AFL-03",
+          "task_number": "3",
+          "description": "Make sure the fire extinguisher pressure relief indication disc for each engine is intact and APU fire extinguisher pressure relief indication disc is intact (if installed). For 800XP airplanes only."
+        },
+        {
+          "id": "HWK-AFL-04",
+          "task_number": "4",
+          "description": "Make sure the APU inlet is clear and unobstructed."
+        }
       ]
     },
     {
-      title: "Rear Equipment Bay",
-      items: [
-        { description: "Open hatch to rear equipment bay and check condition of hatch." },
-        { description: "Check general condition of the rear equipment bay." },
-        { description: "Check the maintenance panel (if installed), located next to the hydraulic accumulators." },
-        { description: "Assure that hydraulic accumulator pressures have been checked. Check for minimum pressure." },
-        { description: "Assure that the main hydraulic reservoir contents (dependent on accumulator pressure) have been checked and there are no leaks." },
-        { description: "Check battery connectors for security." },
-        { description: "Check computers, connected and secure." },
-        { description: "Check APU general condition, no leaks." },
-        { description: "Make sure the fire extinguisher pressure relief indication disc, located in the rear bay adjacent to the APU is intact." },
-        { description: "Check the stick pusher assembly, general condition and latched securely." },
-        { description: "Make sure the equipment bay light is off and the hatch is closed and latched securely." }
+      "section_id": "HWK-REB",
+      "title": "Rear Equipment Bay",
+      "items": [
+        {
+          "id": "HWK-REB-01",
+          "task_number": "1",
+          "description": "Open hatch to rear equipment bay and check condition of hatch."
+        },
+        {
+          "id": "HWK-REB-02",
+          "task_number": "2",
+          "description": "Check general condition of the rear equipment bay."
+        },
+        {
+          "id": "HWK-REB-03",
+          "task_number": "3",
+          "description": "Check the maintenance panel (if installed), located next to the hydraulic accumulators."
+        },
+        {
+          "id": "HWK-REB-04",
+          "task_number": "4",
+          "description": "Assure that hydraulic accumulator pressures have been checked. Check for minimum pressure."
+        },
+        {
+          "id": "HWK-REB-05",
+          "task_number": "5",
+          "description": "Assure that the main hydraulic reservoir contents (dependent on accumulator pressure) have been checked and there are no leaks."
+        },
+        {
+          "id": "HWK-REB-06",
+          "task_number": "6",
+          "description": "Check battery connectors for security."
+        },
+        {
+          "id": "HWK-REB-07",
+          "task_number": "7",
+          "description": "Check computers, connected and secure."
+        },
+        {
+          "id": "HWK-REB-08",
+          "task_number": "8",
+          "description": "Check APU general condition, no leaks."
+        },
+        {
+          "id": "HWK-REB-09",
+          "task_number": "9",
+          "description": "Make sure the fire extinguisher pressure relief indication disc, located in the rear bay adjacent to the APU is intact."
+        },
+        {
+          "id": "HWK-REB-10",
+          "task_number": "10",
+          "description": "Check the stick pusher assembly, general condition and latched securely."
+        },
+        {
+          "id": "HWK-REB-11",
+          "task_number": "11",
+          "description": "Make sure the equipment bay light is off and the hatch is closed and latched securely."
+        }
       ]
     },
     {
-      title: "Left Engine and Nacelle",
-      items: [
-        { description: "Remove engine cover and check exhaust and make sure it is free from foreign object." },
-        { description: "Make sure there is no damage to the turbine blades when viewed through the exhaust." },
-        { description: "Make sure there are no visible oil leaks in the engine cowling and engine exhaust areas." },
-        { description: "Make sure the pin is removed from the thrust reverser and the TR is stowed and is secured.", is_daily_only: true },
-        { description: "Check general condition of cowling and latches for damage, vents and drain holes should be clear." },
-        { description: "Check engine oil tank quantity Ground Handling Check List (Part III, Para. L) and engine oil filter by pass pin." },
-        { description: "Check engine exhaust drain mast clear no leaks." },
-        { description: "Make sure there are no visible oil leaks in the engine intake and cowling. DO NOT ATTEMPT TO STOP THE FAN BY HOLDING THE BLADES." },
-        { description: "Make sure there is no damage to the fan blades when viewed through the engine intake." },
-        { description: "Check P2T2 sensor clean, undamaged and secure." },
-        { description: "Make sure the starter generator cooling intake and outlet are unobstructed." }
+      "section_id": "HWK-LENG",
+      "title": "Left Engine and Nacelle",
+      "items": [
+        {
+          "id": "HWK-LENG-01",
+          "task_number": "1",
+          "description": "Remove engine cover and check exhaust and make sure it is free from foreign object."
+        },
+        {
+          "id": "HWK-LENG-02",
+          "task_number": "2",
+          "description": "Make sure there is no damage to the turbine blades when viewed through the exhaust."
+        },
+        {
+          "id": "HWK-LENG-03",
+          "task_number": "3",
+          "description": "Make sure there are no visible oil leaks in the engine cowling and engine exhaust areas."
+        },
+        {
+          "id": "HWK-LENG-04",
+          "task_number": "4",
+          "description": "Make sure the pin is removed from the thrust reverser and the TR is stowed and is secured.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-LENG-05",
+          "task_number": "5",
+          "description": "Check general condition of cowling and latches for damage, vents and drain holes should be clear."
+        },
+        {
+          "id": "HWK-LENG-06",
+          "task_number": "6",
+          "description": "Check engine oil tank quantity Ground Handling Check List (Part III, Para. L) and engine oil filter by pass pin."
+        },
+        {
+          "id": "HWK-LENG-07",
+          "task_number": "7",
+          "description": "Check engine exhaust drain mast clear no leaks."
+        },
+        {
+          "id": "HWK-LENG-08",
+          "task_number": "8",
+          "description": "Make sure there are no visible oil leaks in the engine intake and cowling.",
+          "note_text": "WARNING: DO NOT ATTEMPT TO STOP THE FAN BY HOLDING THE BLADES IF THE FAN IS WINDMILLING. THE BLADES ARE SHARP. STOP THE FAN BY PUSHING ON THE SPINNER."
+        },
+        {
+          "id": "HWK-LENG-09",
+          "task_number": "9",
+          "description": "Make sure there is no damage to the fan blades when viewed through the engine intake."
+        },
+        {
+          "id": "HWK-LENG-10",
+          "task_number": "10",
+          "description": "Check P2T2 sensor clean, undamaged and secure."
+        },
+        {
+          "id": "HWK-LENG-11",
+          "task_number": "11",
+          "description": "Make sure the starter generator cooling intake and outlet are unobstructed."
+        }
       ]
     },
     {
-      title: "Left Main Landing Gear Center Keel",
-      items: [
-        { description: "Make sure main landing gear ground lock is installed in the main landing gear and is secure." },
-        { description: "Visually inspect the side stay components and attachment points for security and make sure there is no visual damage." },
-        { description: "Visually check the strut for normal condition.", is_daily_only: true },
-        { description: "Check tires for condition.", is_daily_only: true },
-        { description: "Make sure there is no visible damage to the fairing and main landing gear doors." },
-        { description: "Check the main gear and inside the main gear bay to make sure there is no fluid leakage." },
-        { description: "Check condition of wiring and hoses." },
-        { description: "Check condition of anticollision light lens and bulb, located on the center keel." },
-        { description: "Check all antennas attached to keel secure and undamaged." },
-        { description: "Make sure that all water has been drained from ventral fuel tank Ground Handling Check List (Part III, Para. D)." }
+      "section_id": "HWK-LMLG",
+      "title": "Left Main Landing Gear Center Keel",
+      "items": [
+        {
+          "id": "HWK-LMLG-01",
+          "task_number": "1",
+          "description": "Make sure main landing gear ground lock is installed in the main landing gear and is secure."
+        },
+        {
+          "id": "HWK-LMLG-02",
+          "task_number": "2",
+          "description": "Visually inspect the side stay components and attachment points for security and make sure there is no visual damage."
+        },
+        {
+          "id": "HWK-LMLG-03",
+          "task_number": "3",
+          "description": "Visually check the strut for normal condition.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-LMLG-04",
+          "task_number": "4",
+          "description": "Check tires for condition.",
+          "is_daily_only": true
+        },
+        {
+          "id": "HWK-LMLG-05",
+          "task_number": "5",
+          "description": "Make sure there is no visible damage to the fairing and main landing gear doors."
+        },
+        {
+          "id": "HWK-LMLG-06",
+          "task_number": "6",
+          "description": "Check the main gear and inside the main gear bay to make sure there is no fluid leakage."
+        },
+        {
+          "id": "HWK-LMLG-07",
+          "task_number": "7",
+          "description": "Check condition of wiring and hoses."
+        },
+        {
+          "id": "HWK-LMLG-08",
+          "task_number": "8",
+          "description": "Check condition of anticollision light lens and bulb, located on the center keel."
+        },
+        {
+          "id": "HWK-LMLG-09",
+          "task_number": "9",
+          "description": "Check all antennas attached to keel secure and undamaged."
+        },
+        {
+          "id": "HWK-LMLG-10",
+          "task_number": "10",
+          "description": "Make sure that all water has been drained from ventral fuel tank Ground Handling Check List (Part III, Para. D)."
+        }
       ]
     },
     {
-      title: "Left Wing",
-      items: [
-        { description: "Check condition of flap and air brakes." },
-        { description: "Check for damaged or missing static wicks." },
-        { description: "Check condition of aileron and aileron trim tab." },
-        { description: "Make sure there are no foreign objects or debris in the aileron shrouds." },
-        { description: "Make sure the aileron moves freely through the full range of travel." },
-        { description: "Check condition of wing tip. Check winglet (if installed)." },
-        { description: "Check condition of strobe and navigation light lens and bulbs/ LEDs (if installed)." },
-        { description: "Check drain vent surge tank drain." },
-        { description: "Make sure the NACA vent is clear." },
-        { description: "Make sure the vortex generators are secure and not deformed." },
-        { description: "Check the overwing fuel cap for security." },
-        { description: "Make sure the stall warning system vent (if installed) is clear." },
-        { description: "Check the condition of the external structure of the wing to make sure it is clean and undamaged; upper and lower surface (no fuel leaks), leading edge, stall strip, landing and taxi lights (condition of lens and bulbs) and vortilon." },
-        { description: "Check condition of the wing ice light lens and bulb." },
-        { description: "Check condition of overwing fillet fairing." },
-        { description: "Check condition of the boarding light lens and bulb." },
-        { description: "Check condition of the main entry door seal/frame, external fuselage and windows." },
-        { description: "Make sure that all water has been drained from the center section fuel tank sumps Ground Handling Check List (Part III, Para. D)." }
+      "section_id": "HWK-LWG",
+      "title": "Left Wing",
+      "items": [
+        {
+          "id": "HWK-LWG-01",
+          "task_number": "1",
+          "description": "Check condition of flap and air brakes."
+        },
+        {
+          "id": "HWK-LWG-02",
+          "task_number": "2",
+          "description": "Check for damaged or missing static wicks."
+        },
+        {
+          "id": "HWK-LWG-03",
+          "task_number": "3",
+          "description": "Check condition of aileron and aileron trim tab."
+        },
+        {
+          "id": "HWK-LWG-04",
+          "task_number": "4",
+          "description": "Make sure there are no foreign objects or debris in the aileron shrouds."
+        },
+        {
+          "id": "HWK-LWG-05",
+          "task_number": "5",
+          "description": "Make sure the aileron moves freely through the full range of travel."
+        },
+        {
+          "id": "HWK-LWG-06",
+          "task_number": "6",
+          "description": "Check condition of wing tip. Check winglet (if installed)."
+        },
+        {
+          "id": "HWK-LWG-07",
+          "task_number": "7",
+          "description": "Check condition of strobe and navigation light lens and bulbs/ LEDs (if installed)."
+        },
+        {
+          "id": "HWK-LWG-08",
+          "task_number": "8",
+          "description": "Check drain vent surge tank drain."
+        },
+        {
+          "id": "HWK-LWG-09",
+          "task_number": "9",
+          "description": "Make sure the NACA vent is clear."
+        },
+        {
+          "id": "HWK-LWG-10",
+          "task_number": "10",
+          "description": "Make sure the vortex generators are secure and not deformed."
+        },
+        {
+          "id": "HWK-LWG-11",
+          "task_number": "11",
+          "description": "Check the overwing fuel cap for security."
+        },
+        {
+          "id": "HWK-LWG-12",
+          "task_number": "12",
+          "description": "Make sure the stall warning system vent (if installed) is clear."
+        },
+        {
+          "id": "HWK-LWG-13",
+          "task_number": "13",
+          "description": "Check the condition of the external structure of the wing to make sure it is clean and undamaged; upper and lower surface (no fuel leaks), leading edge, stall strip, landing and taxi lights (condition of lens and bulbs) and vortilon."
+        },
+        {
+          "id": "HWK-LWG-14",
+          "task_number": "14",
+          "description": "Check condition of the wing ice light lens and bulb."
+        },
+        {
+          "id": "HWK-LWG-15",
+          "task_number": "15",
+          "description": "Check condition of overwing fillet fairing."
+        },
+        {
+          "id": "HWK-LWG-16",
+          "task_number": "16",
+          "description": "Check condition of the boarding light lens and bulb."
+        },
+        {
+          "id": "HWK-LWG-17",
+          "task_number": "17",
+          "description": "Check condition of the main entry door seal/frame, external fuselage and windows."
+        },
+        {
+          "id": "HWK-LWG-18",
+          "task_number": "18",
+          "description": "Make sure that all water has been drained from the center section fuel tank sumps Ground Handling Check List (Part III, Para. D)."
+        }
       ]
     },
     {
-      title: "Flight Compartment",
-      items: [
-        { description: "Make sure all flashlights function correctly." },
-        { description: "Make sure the auxiliary hydraulic system handpump handle/rudder gust lock is properly stowed." },
-        { description: "Make sure the dump valve lever is set to SHUT." },
-        { description: "Make sure there is full and free movement of the aileron, elevator and rudder primary controls." },
-        { description: "Make sure the oxygen system contents are adequate and the valves are ON Ground Handling Check List (Part III, Para H)." },
-        { description: "With the landing gear ground locks installed, make sure that the emergency dump valve is properly exercised by operating the auxiliary hydraulic system selector handle several times." },
-        { description: "Check the portable breathing equipment (if installed)." },
-        { description: "Check the airframe anti-icing system tank contents." },
-        { description: "Check the fuel tanks for required fuel quantities." }
+      "section_id": "HWK-FLT",
+      "title": "Flight Compartment",
+      "items": [
+        {
+          "id": "HWK-FLT-01",
+          "task_number": "1",
+          "description": "Make sure all flashlights function correctly."
+        },
+        {
+          "id": "HWK-FLT-02",
+          "task_number": "2",
+          "description": "Make sure the auxiliary hydraulic system handpump handle/rudder gust lock is properly stowed."
+        },
+        {
+          "id": "HWK-FLT-03",
+          "task_number": "3",
+          "description": "Make sure the dump valve lever is set to SHUT."
+        },
+        {
+          "id": "HWK-FLT-04",
+          "task_number": "4",
+          "description": "Make sure there is full and free movement of the aileron, elevator and rudder primary controls."
+        },
+        {
+          "id": "HWK-FLT-05",
+          "task_number": "5",
+          "description": "Make sure the oxygen system contents are adequate and the valves are ON Ground Handling Check List (Part III, Para H)."
+        },
+        {
+          "id": "HWK-FLT-06",
+          "task_number": "6",
+          "description": "With the landing gear ground locks installed, make sure that the emergency dump valve is properly exercised by operating the auxiliary hydraulic system selector handle several times.",
+          "note_text": "Investigate any undue stiffness in operation. On completion of the check make sure the selector handle is reset to the fully-in position."
+        },
+        {
+          "id": "HWK-FLT-07",
+          "task_number": "7",
+          "description": "Check the portable breathing equipment (if installed)."
+        },
+        {
+          "id": "HWK-FLT-08",
+          "task_number": "8",
+          "description": "Check the airframe anti-icing system tank contents."
+        },
+        {
+          "id": "HWK-FLT-09",
+          "task_number": "9",
+          "description": "Check the fuel tanks for required fuel quantities.",
+          "note_text": "If the airplane will be operated in an area where microbiological contamination of fuel is likely to exist, it is strongly recommended that regular use is made of fuel treated with an approved biocidal additive. Refer to Section 2 (Limitations) in the FAA approved Airplane Flight Manual."
+        }
       ]
     },
     {
-      title: "Vestibule, Passenger Cabin, Toilet Compartment",
-      items: [
-        { description: "Make sure all emergency equipment is on board and properly stowed." },
-        { description: "Make sure the emergency exit door is secured." },
-        { description: "Remove the emergency exit internal locking pin (if installed) and stow securely." }
+      "section_id": "HWK-CAB",
+      "title": "Vestibule, Passenger Cabin, Toilet Compartment",
+      "items": [
+        {
+          "id": "HWK-CAB-01",
+          "task_number": "1",
+          "description": "Make sure all emergency equipment is on board and properly stowed."
+        },
+        {
+          "id": "HWK-CAB-02",
+          "task_number": "2",
+          "description": "Make sure the emergency exit door is secured."
+        },
+        {
+          "id": "HWK-CAB-03",
+          "task_number": "3",
+          "description": "Remove the emergency exit internal locking pin (if installed) and stow securely."
+        }
       ]
     },
     {
-      title: "Final Items",
-      items: [
-        { description: "Make sure that all access doors and servicing panels are secure." },
-        { description: "Make sure that any frost, snow or ice is removed, refer to AFM Section 2 for limitations. Make sure that any accumulation of snow or ice is removed from the air conditioning system cooling turbine exhaust duct before starting the APU or the main engines." },
-        { description: "Make sure steering disconnect pin, located between the nose gear torque link sleeve and the steering sleeve, is secured in place with the quick-release pin locked. Quick release pin is locked when indicator groove is exposed and level with the head." },
-        { description: "Remove the gear pins and stow." }
+      "section_id": "HWK-FIN",
+      "title": "Final Items",
+      "items": [
+        {
+          "id": "HWK-FIN-01",
+          "task_number": "1",
+          "description": "Make sure that all access doors and servicing panels are secure."
+        },
+        {
+          "id": "HWK-FIN-02",
+          "task_number": "2",
+          "description": "Make sure that any frost, snow or ice is removed, refer to AFM Section 2 for limitations. Make sure that any accumulation of snow or ice is removed from the air conditioning system cooling turbine exhaust duct before starting the APU or the main engines."
+        },
+        {
+          "id": "HWK-FIN-03",
+          "task_number": "3",
+          "description": "Make sure steering disconnect pin, located between the nose gear torque link sleeve and the steering sleeve, is secured in place with the quick-release pin locked. Quick release pin is locked when indicator groove is exposed and level with the head."
+        },
+        {
+          "id": "HWK-FIN-04",
+          "task_number": "4",
+          "description": "Remove the gear pins and stow."
+        }
       ]
     }
   ]
