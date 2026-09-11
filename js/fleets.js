@@ -112,126 +112,398 @@ const FLEET_TEMPLATES = {
   ],
   "Challenger": [
     {
-      title: "Front Fuselage",
-      items: [
-        { description: "Static Ports: Make sure there is no damage or obstruction." },
-        { description: "Angle-of-Attack Vanes: Look at the general condition and make sure there is no damage." },
-        { description: "Pitot Tubes: Make sure there is no damage or obstruction." },
-        { description: "Nose Landing Gear, Doors and Bay: Do a check of the oleo extension, look for damaged tires and wheels, damaged or loose installations and hydraulic leaks. Make sure the proximity sensors and their harnesses are attached correctly. Make sure the brake accumulators pressures are within permitted limits." },
-        { 
-          description: "Wheel & Tire: Record NLG Tire #1 Pressure.",
-          meta_entry: { type: "tire_pressure", label: "NLG #1 Pressure", unit: "psi", target_value: "155 +7/-0 psi" }
+      "section_id": "CHL-SEC1",
+      "title": "Front Fuselage",
+      "items": [
+        {
+          "id": "CHL-FF-A1",
+          "task_number": "A",
+          "description": "Static Ports: Make sure there is no damage or obstruction."
         },
-        { 
-          description: "Wheel & Tire: Record NLG Tire #2 Pressure.",
-          meta_entry: { type: "tire_pressure", label: "NLG #2 Pressure", unit: "psi", target_value: "155 +7/-0 psi" }
+        {
+          "id": "CHL-FF-B1",
+          "task_number": "B",
+          "description": "Angle-of-Attack Vanes: Look at the general condition and make sure there is no damage."
         },
-        { description: "Oxygen System: Make sure that the pressure shown on the gauge on the ground service panel is within permitted limits. Make sure that the green disc on the overboard discharge indicator is not damaged. Make sure that the valves on the oxygen bottles are opened." },
-        { 
-          description: "Oxygen System: Ensure oxygen bottle is within life limit and record due date.",
-          meta_entry: { type: "due_date", label: "Oxygen Bottle Due Date" }
+        {
+          "id": "CHL-FF-C1",
+          "task_number": "C",
+          "description": "Pitot Tubes: Make sure there is no damage or obstruction."
         },
-        { 
-          description: "Oxygen System: Ensure PBE is within life limit and record due date.",
-          meta_entry: { type: "due_date", label: "PBE Due Date" }
+        {
+          "id": "CHL-FF-D1",
+          "task_number": "D",
+          "description": "Nose Landing Gear, Doors and Bay: Do a check of the oleo extension, look for damaged tires and wheels, damaged or loose installations and hydraulic leaks. Make sure the proximity sensors and their harnesses are attached correctly. Make sure the brake accumulators pressures are within permitted limits."
         },
-        { description: "Windshield and Windows: Clean." },
-        { description: "Total Air Temperature Sensor: Make sure there is no damage or obstruction." },
-        { description: "Antennae: Look at the general condition and make sure there is no damage." },
-        { description: "Radome: Look at the general condition and make sure there is no damage." },
-        { description: "Passenger Entrance Door-Seal: Look at the general condition and make sure there is no damage." },
-        { description: "Fuselage Exterior: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly." }
-      ]
-    },
-    {
-      title: "Wings",
-      items: [
-        { description: "Wing Exterior: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly. Make sure that the anti-ice duct on the leading edge is not obstructed. Make sure the static dischargers are not damaged." },
-        { description: "Main Landing Gear, Doors and Bay: Do a check of the oleo extension, look for damaged tires and wheels, damaged or loose installations and hydraulic leaks. Make sure that brake wear is within limits and there are no signs of overheat. Make sure the proximity sensors and their harnesses are attached correctly." },
-        { 
-          description: "Wheel & Tire: Record LH MLG Tire #1 Pressure.",
-          meta_entry: { type: "tire_pressure", label: "LH MLG #1 Pressure", unit: "psi", target_value: "184 +9/-0 psi" }
+        {
+          "id": "CHL-FF-D2",
+          "task_number": "D",
+          "description": "Wheel & Tire: Visual check of the right and left nose wheel and tire assembly. Check for wear and/or tear."
         },
-        { 
-          description: "Wheel & Tire: Record LH MLG Tire #2 Pressure.",
-          meta_entry: { type: "tire_pressure", label: "LH MLG #2 Pressure", unit: "psi", target_value: "184 +9/-0 psi" }
+        {
+          "id": "CHL-FF-D3",
+          "task_number": "D",
+          "description": "Wheel & Tire: Record NLG Tire #1 Pressure IAW AMM 12-15-00-780-801.",
+          "note_text": "Check tire pressure IAW AMM 12-15-00-780-801. Target: 155 +7/-0 psi.",
+          "meta_entry": {
+            "type": "tire_pressure",
+            "label": "NLG #1 Pressure",
+            "unit": "psi",
+            "target_value": "155 +7/-0 psi",
+            "value": null
+          }
         },
-        { 
-          description: "Wheel & Tire: Record RH MLG Tire #3 Pressure.",
-          meta_entry: { type: "tire_pressure", label: "RH MLG #3 Pressure", unit: "psi", target_value: "184 +9/-0 psi" }
+        {
+          "id": "CHL-FF-D4",
+          "task_number": "D",
+          "description": "Wheel & Tire: Record NLG Tire #2 Pressure IAW AMM 12-15-00-780-801.",
+          "note_text": "Check tire pressure IAW AMM 12-15-00-780-801. Target: 155 +7/-0 psi.",
+          "meta_entry": {
+            "type": "tire_pressure",
+            "label": "NLG #2 Pressure",
+            "unit": "psi",
+            "target_value": "155 +7/-0 psi",
+            "value": null
+          }
         },
-        { 
-          description: "Wheel & Tire: Record RH MLG Tire #4 Pressure.",
-          meta_entry: { type: "tire_pressure", label: "RH MLG #4 Pressure", unit: "psi", target_value: "184 +9/-0 psi" }
+        {
+          "id": "CHL-FF-E1",
+          "task_number": "E",
+          "description": "Oxygen System: Make sure that the pressure shown on the gauge on the ground service panel is within permitted limits. Make sure that the green disc on the overboard discharge indicator is not damaged. Make sure that the valves on the oxygen bottles are opened."
         },
-        { description: "Hydraulics: Make sure the No. 3 hydraulic system accumulator pressure is within permitted limits, refer to AMM 12-12-29-210-803. Make sure the differential-pressure pop-up indicator on the No. 3 hydraulic system is in the serviceable position." },
-        { description: "Ailerons: Look at the general condition and make sure there is no damage. Make sure the static dischargers are not damaged." },
-        { description: "Flaps: Look at the general condition and make sure there is no damage." },
-        { description: "Flight Spoilers: Look at the general condition and make sure there is no damage." },
-        { description: "Ground Spoilers: Look at the general condition and make sure there is no damage." },
-        { description: "Fuel Tanks: Drain the water condensate." },
-        { description: "Fuel Filler Caps: Make sure the filler caps closed correctly." },
-        { description: "Fuel Vent Inlet: Make sure there is no damage or obstruction." },
-        { description: "Navigation and Strobe Lights: Make sure there is no damage." },
-        { description: "Landing, Taxi, and Inspection Lights: Make sure there is no damage." }
-      ]
-    },
-    {
-      title: "Rear Fuselage, Stabilizer and Powerplant",
-      items: [
-        { description: "Rear Fuselage-Exterior: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly. Make sure the static dischargers are not damaged. Make sure there is no damage or obstruction to the exhausts from the air condition unit and the APU." },
-        { description: "Antennae: Look at the general condition and make sure there is no damage." },
-        { description: "Stabilizers: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly. Make sure the static dischargers are not damaged." },
-        { description: "Rudder: Look at the general condition and make sure there is no damage. Make sure the static dischargers are not damaged." },
-        { description: "Elevators: Look at the general condition and make sure there is no damage. Make sure the static dischargers are not damaged." },
-        { description: "Pylon and Engine: Do a check of the intake, exhaust and stage 6 turbine blades for FOD. Do a check of the overboard drains for leaks. Make sure the cowl doors and panels are closed correctly. Turn the fan rotor by hand and make sure it turns freely." },
-        { description: "Engine: Add oil, as required. Check oil level and do the servicing between 15 and 30 minutes after engine shutdown." },
-        { description: "Integrated Drive Generator (IDG): Add oil, as required. Wait at least 3 minutes after engine shutdown to let the IDG oil level become stable. Make sure that the pressure differential indicators show a serviceable condition (whenever the nacelle access doors are open)." },
-        { description: "Emergency Lights: Make sure there is no damage." }
-      ]
-    },
-    {
-      title: "Rear Equipment Bay",
-      items: [
-        { description: "Compartment: Do a check of all equipment and installations for condition and correct installation. Make sure the No. 1 and No. 2 hydraulic system accumulator pressures are within permitted limits, refer to AMM 12-12-29-210-803. Make sure the hydraulic level in system 1 and 2 are within limit. Make sure that the differential-pressure pop-up indicators on the No. 1 and No. 2 hydraulic system filters show a serviceable condition." },
-        { description: "APU: Do a check of wires, tubes, ducts, fittings, air intakes duct and exhaust duct for condition. Empty ecology bottles when more than 3/4 full. Add oil, as required. Make sure the oil level in the generator adaptor is within limits." }
-      ]
-    },
-    {
-      title: "Rear Fuselage Interior",
-      items: [
-        { description: "Loose Equipment: Make sure that all equipment is attached correctly." },
-        { description: "Baggage Compartment Door Seal: Do a check for damage and general condition." },
-        { description: "Portable Fire Extinguisher: Make sure that the pressure is within permitted limits, the tamper indicator is not broken and the nozzle is not obstructed." },
-        { 
-          description: "Portable Fire Extinguisher: Ensure fire extinguishers are within life limit and record due date.",
-          meta_entry: { type: "due_date", label: "Fire Extinguisher Due Date" }
+        {
+          "id": "CHL-FF-E2",
+          "task_number": "E",
+          "description": "Oxygen System: Ensure oxygen bottle is within life limit and record due date.",
+          "meta_entry": {
+            "type": "due_date",
+            "label": "Oxygen Bottle Due Date",
+            "value": null
+          }
         },
-        { description: "Overwing Emergency Exit: Make sure that the door is closed correctly." }
-      ]
-    },
-    {
-      title: "First Aid Kit",
-      items: [
-        { description: "First Aid Kit: Do a visual check for general condition." },
-        { 
-          description: "First Aid Kit: Record due date.",
-          meta_entry: { type: "due_date", label: "First Aid Kit Due Date" }
+        {
+          "id": "CHL-FF-E3",
+          "task_number": "E",
+          "description": "Oxygen System: Ensure PBE is within life limit and record due date.",
+          "meta_entry": {
+            "type": "due_date",
+            "label": "PBE Due Date",
+            "value": null
+          }
+        },
+        {
+          "id": "CHL-FF-F1",
+          "task_number": "F",
+          "description": "Windshield and Windows: Clean."
+        },
+        {
+          "id": "CHL-FF-G1",
+          "task_number": "G",
+          "description": "Total Air Temperature Sensor: Make sure there is no damage or obstruction."
+        },
+        {
+          "id": "CHL-FF-H1",
+          "task_number": "H",
+          "description": "Antennae: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-FF-I1",
+          "task_number": "I",
+          "description": "Radome: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-FF-J1",
+          "task_number": "J",
+          "description": "Passenger Entrance Door-Seal: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-FF-K1",
+          "task_number": "K",
+          "description": "Fuselage Exterior: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly."
         }
       ]
     },
     {
-      title: "Restraint Systems",
-      items: [
-        { description: "Restraint Systems: Ensure each seat is equipped with seat belt and safety harness for crew seat. Check general condition." }
+      "section_id": "CHL-SEC2",
+      "title": "Wings",
+      "items": [
+        {
+          "id": "CHL-WG-A1",
+          "task_number": "A",
+          "description": "Wing Exterior: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly. Make sure that the anti-ice duct on the leading edge is not obstructed. Make sure the static dischargers are not damaged."
+        },
+        {
+          "id": "CHL-WG-B1",
+          "task_number": "B",
+          "description": "Main Landing Gear, Doors and Bay: Do a check of the oleo extension, look for damaged tires and wheels, damaged or loose installations and hydraulic leaks. Make sure that brake wear is within limits and there are no signs of overheat."
+        },
+        {
+          "id": "CHL-WG-B2",
+          "task_number": "B",
+          "description": "Wheel & Tire: Visual check of the right and left main wheel and tire assembly. Check for wear and/or tear."
+        },
+        {
+          "id": "CHL-WG-B3",
+          "task_number": "B",
+          "description": "Wheel & Tire: Record LH MLG Tire #1 Pressure IAW AMM 12-15-00-780-801.",
+          "note_text": "Check tire pressure IAW AMM 12-15-00-780-801. Target: 184 +9/-0 psi.",
+          "meta_entry": {
+            "type": "tire_pressure",
+            "label": "LH MLG #1 Pressure",
+            "unit": "psi",
+            "target_value": "184 +9/-0 psi",
+            "value": null
+          }
+        },
+        {
+          "id": "CHL-WG-B4",
+          "task_number": "B",
+          "description": "Wheel & Tire: Record LH MLG Tire #2 Pressure IAW AMM 12-15-00-780-801.",
+          "note_text": "Check tire pressure IAW AMM 12-15-00-780-801. Target: 184 +9/-0 psi.",
+          "meta_entry": {
+            "type": "tire_pressure",
+            "label": "LH MLG #2 Pressure",
+            "unit": "psi",
+            "target_value": "184 +9/-0 psi",
+            "value": null
+          }
+        },
+        {
+          "id": "CHL-WG-B5",
+          "task_number": "B",
+          "description": "Wheel & Tire: Record RH MLG Tire #3 Pressure IAW AMM 12-15-00-780-801.",
+          "note_text": "Check tire pressure IAW AMM 12-15-00-780-801. Target: 184 +9/-0 psi.",
+          "meta_entry": {
+            "type": "tire_pressure",
+            "label": "RH MLG #3 Pressure",
+            "unit": "psi",
+            "target_value": "184 +9/-0 psi",
+            "value": null
+          }
+        },
+        {
+          "id": "CHL-WG-B6",
+          "task_number": "B",
+          "description": "Wheel & Tire: Record RH MLG Tire #4 Pressure IAW AMM 12-15-00-780-801.",
+          "note_text": "Check tire pressure IAW AMM 12-15-00-780-801. Target: 184 +9/-0 psi.",
+          "meta_entry": {
+            "type": "tire_pressure",
+            "label": "RH MLG #4 Pressure",
+            "unit": "psi",
+            "target_value": "184 +9/-0 psi",
+            "value": null
+          }
+        },
+        {
+          "id": "CHL-WG-B7",
+          "task_number": "B",
+          "description": "Main Landing Gear: Make sure there are no hydraulic leaks. Make sure the proximity sensors and their harnesses are attached correctly."
+        },
+        {
+          "id": "CHL-WG-B8",
+          "task_number": "B",
+          "description": "Hydraulics: Make sure the No. 3 hydraulic system accumulator pressure is within permitted limits, refer to AMM 12-12-29-210-803. Make sure the differential-pressure pop-up indicator on the No. 3 hydraulic system is in the serviceable position.",
+          "note_text": "Refer to AMM 12-12-29-210-803."
+        },
+        {
+          "id": "CHL-WG-C1",
+          "task_number": "C",
+          "description": "Ailerons: Look at the general condition and make sure there is no damage. Make sure the static dischargers are not damaged."
+        },
+        {
+          "id": "CHL-WG-D1",
+          "task_number": "D",
+          "description": "Flaps: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-WG-E1",
+          "task_number": "E",
+          "description": "Flight Spoilers: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-WG-F1",
+          "task_number": "F",
+          "description": "Ground Spoilers: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-WG-G1",
+          "task_number": "G",
+          "description": "Fuel Tanks: Drain the water condensate."
+        },
+        {
+          "id": "CHL-WG-H1",
+          "task_number": "H",
+          "description": "Fuel Filler Caps: Make sure the filler caps closed correctly."
+        },
+        {
+          "id": "CHL-WG-I1",
+          "task_number": "I",
+          "description": "Fuel Vent Inlet: Make sure there is no damage or obstruction."
+        },
+        {
+          "id": "CHL-WG-J1",
+          "task_number": "J",
+          "description": "Navigation and Strobe Lights: Make sure there is no damage."
+        },
+        {
+          "id": "CHL-WG-K1",
+          "task_number": "K",
+          "description": "Landing, Taxi, and Inspection Lights: Make sure there is no damage."
+        }
       ]
     },
     {
-      title: "Life Vests",
-      items: [
-        { 
-          description: "Life Vests: Ensure all life vests are within life limit and record due date.",
-          meta_entry: { type: "due_date", label: "Life Vests Due Date" }
+      "section_id": "CHL-SEC3",
+      "title": "Rear Fuselage, Stabilizer and Powerplant",
+      "items": [
+        {
+          "id": "CHL-RFS-A1",
+          "task_number": "A",
+          "description": "Rear Fuselage-Exterior: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly. Make sure the static dischargers are not damaged. Make sure there is no damage or obstruction to the exhausts from the air condition unit and the APU."
+        },
+        {
+          "id": "CHL-RFS-B1",
+          "task_number": "B",
+          "description": "Antennae: Look at the general condition and make sure there is no damage."
+        },
+        {
+          "id": "CHL-RFS-C1",
+          "task_number": "C",
+          "description": "Stabilizers: Make sure there is no damage or fluid leaks. Make sure that access panels are closed correctly. Make sure the static dischargers are not damaged."
+        },
+        {
+          "id": "CHL-RFS-D1",
+          "task_number": "D",
+          "description": "Rudder: Look at the general condition and make sure there is no damage. Make sure the static dischargers are not damaged."
+        },
+        {
+          "id": "CHL-RFS-E1",
+          "task_number": "E",
+          "description": "Elevators: Look at the general condition and make sure there is no damage. Make sure the static dischargers are not damaged."
+        },
+        {
+          "id": "CHL-RFS-F1",
+          "task_number": "F",
+          "description": "Pylon and Engine: Do a check of the intake, exhaust and stage 6 turbine blades for FOD. Do a check of the overboard drains for leaks. Make sure the cowl doors and panels are closed correctly. Turn the fan rotor by hand and make sure it turns freely."
+        },
+        {
+          "id": "CHL-RFS-G1",
+          "task_number": "G",
+          "description": "Engine: Add oil, as required. Check oil level and do the servicing between 15 and 30 minutes after engine shutdown.",
+          "note_text": "Check oil level and do the servicing between 15 and 30 minutes after engine shutdown."
+        },
+        {
+          "id": "CHL-RFS-H1",
+          "task_number": "H",
+          "description": "Integrated Drive Generator (IDG): Add oil, as required. Wait at least 3 minutes after engine shutdown to let the IDG oil level become stable. Make sure that the pressure differential indicators show a serviceable condition (whenever the nacelle access doors are open).",
+          "note_text": "Wait at least 3 minutes after engine shutdown to let the IDG oil level become stable."
+        },
+        {
+          "id": "CHL-RFS-I1",
+          "task_number": "I",
+          "description": "Emergency Lights: Make sure there is no damage."
+        }
+      ]
+    },
+    {
+      "section_id": "CHL-SEC4",
+      "title": "Rear Equipment Bay",
+      "items": [
+        {
+          "id": "CHL-REB-A1",
+          "task_number": "A",
+          "description": "Compartment: Do a check of all equipment and installations for condition and correct installation. Make sure the No. 1 and No. 2 hydraulic system accumulator pressures are within permitted limits, refer to AMM 12-12-29-210-803. Make sure the hydraulic level in system 1 and 2 are within limit. Make sure that the differential-pressure pop-up indicators on the No. 1 and No. 2 hydraulic system filters show a serviceable condition.",
+          "note_text": "Refer to AMM 12-12-29-210-803."
+        },
+        {
+          "id": "CHL-REB-B1",
+          "task_number": "B",
+          "description": "APU: Do a check of wires, tubes, ducts, fittings, air intakes duct and exhaust duct for condition. Empty ecology bottles when more than 3/4 full. Add oil, as required. Make sure the oil level in the generator adaptor is within limits.",
+          "note_text": "Empty ecology bottles when more than 3/4 full."
+        }
+      ]
+    },
+    {
+      "section_id": "CHL-SEC5",
+      "title": "Rear Fuselage Interior",
+      "items": [
+        {
+          "id": "CHL-RFI-A1",
+          "task_number": "A",
+          "description": "Loose Equipment: Make sure that all equipment is attached correctly."
+        },
+        {
+          "id": "CHL-RFI-B1",
+          "task_number": "B",
+          "description": "Baggage Compartment Door Seal: Do a check for damage and general condition."
+        },
+        {
+          "id": "CHL-RFI-C1",
+          "task_number": "C",
+          "description": "Portable Fire Extinguisher: Make sure that the pressure is within permitted limits, the tamper indicator is not broken and the nozzle is not obstructed."
+        },
+        {
+          "id": "CHL-RFI-C2",
+          "task_number": "C",
+          "description": "Portable Fire Extinguisher: Ensure fire extinguishers are within life limit and record due date.",
+          "meta_entry": {
+            "type": "due_date",
+            "label": "Fire Extinguisher Due Date",
+            "value": null
+          }
+        },
+        {
+          "id": "CHL-RFI-D1",
+          "task_number": "D",
+          "description": "Overwing Emergency Exit: Make sure that the door is closed correctly."
+        }
+      ]
+    },
+    {
+      "section_id": "CHL-SEC6",
+      "title": "First Aid Kit",
+      "items": [
+        {
+          "id": "CHL-FAK-01",
+          "task_number": "6",
+          "description": "First Aid Kit: Do a visual check for general condition."
+        },
+        {
+          "id": "CHL-FAK-02",
+          "task_number": "6",
+          "description": "First Aid Kit: Record due date.",
+          "meta_entry": {
+            "type": "due_date",
+            "label": "First Aid Kit Due Date",
+            "value": null
+          }
+        }
+      ]
+    },
+    {
+      "section_id": "CHL-SEC7",
+      "title": "Restraint Systems",
+      "items": [
+        {
+          "id": "CHL-RST-01",
+          "task_number": "7",
+          "description": "Restraint Systems: Ensure each seat is equipped with seat belt and safety harness for crew seat. Check general condition."
+        }
+      ]
+    },
+    {
+      "section_id": "CHL-SEC8",
+      "title": "Life Vests",
+      "items": [
+        {
+          "id": "CHL-LV-01",
+          "task_number": "8",
+          "description": "Life Vests: Ensure all life vests are within life limit and record due date.",
+          "meta_entry": {
+            "type": "due_date",
+            "label": "Life Vests Due Date",
+            "value": null
+          }
         }
       ]
     }

@@ -85,6 +85,7 @@
   .notebtn.has{color:var(--accent,#185FA5)}
   .notebox{width:100%;margin-top:8px;font-family:var(--ui);font-size:14px;min-height:56px;
     padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);resize:vertical}
+  .item-oem-note{margin-top:6px;font-size:12.5px;padding:8px 10px;background:rgba(201,135,58,0.1);border-left:3px solid var(--pending);border-radius:0 6px 6px 0;color:var(--ink);line-height:1.4}
 
   /* Check-type selector */
   .ctypes{display:flex;gap:8px}
@@ -812,9 +813,10 @@ function renderSections(){
         </div>`;
       }
       let dailyHtml = itemObj.is_daily_only ? `<span style="font-size:10px;background:var(--gold);color:#000;padding:2px 4px;border-radius:4px;margin-left:6px;vertical-align:middle;font-weight:700">DAILY ONLY</span>` : "";
+      let oemNoteHtml = itemObj.note_text ? `<div class="item-oem-note"><strong>NOTE:</strong> ${itemObj.note_text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>` : "";
       
       row.innerHTML=`<div class="itemtop">
-          <div class="idesc">${itemObj.description}${dailyHtml}</div>
+          <div class="idesc">${itemObj.description}${dailyHtml}${oemNoteHtml}</div>
           <div class="marks">
             <div class="chip" data-k="${si}-${ii}-eng">ENG</div>
             <div class="chip" data-k="${si}-${ii}-tech">TECH</div>
