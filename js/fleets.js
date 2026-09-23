@@ -2,7 +2,7 @@ const FLEET_REGS = {
   "Gulfstream": ["5N-IZA", "P4-ADTW", "P4-AA", "P4-ORJ"],
   "Hawker": ["5N-ISB", "5N-IKO", "5N-JAZ", "5N-ALG", "5N-JAK", "5N-BNM", "5N-KAL"],
   "Challenger": ["5N-DSY", "P4-ZZK"],
-  "Embraer": ["5N-BZQ"]
+  "Embraer": ["5N-SYQ", "5N-JLA"]
 };
 
 const FLEET_TEMPLATES = {
