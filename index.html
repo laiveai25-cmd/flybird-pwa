@@ -746,10 +746,21 @@ function populateRegDropdown(fleet) {
 if($("#fleet")) $("#fleet").addEventListener("change", async (e) => {
   const f = e.target.value;
   if (currentReg) {
+    let oldFleet = "";
+    for (let series in FLEET_REGS) {
+      if (FLEET_REGS[series].includes(currentReg)) {
+        oldFleet = series;
+        break;
+      }
+    }
+    if (oldFleet) e.target.value = oldFleet;
+    
     const oldKey = activeDraftKey(currentReg);
     const oldPayload = getFormDraftPayload();
     oldPayload.registration = currentReg;
     await Store.saveDraft(oldKey, oldPayload);
+    
+    e.target.value = f;
   }
   populateRegDropdown(f);
   $("#reg").value = "";
