@@ -2,7 +2,7 @@ const FLEET_REGS = {
   "Gulfstream": ["5N-IZA", "P4-ADTW", "P4-AA", "P4-ORJ"],
   "Hawker": ["5N-ISB", "5N-IKO", "5N-JAZ", "5N-ALG", "5N-JAK", "5N-BNM", "5N-KAL"],
   "Challenger": ["5N-DSY", "P4-ZZK"],
-  "Embraer": ["5N-BZQ"]
+  "Embraer": ["5N-SYQ", "5N-JLA"]
 };
 
 const FLEET_TEMPLATES = {
@@ -1346,6 +1346,104 @@ const FLEET_TEMPLATES = {
           "id": "HWK-FIN-04",
           "task_number": "4",
           "description": "Remove the gear pins and stow."
+        }
+      ]
+    }
+  ],
+  "Embraer": [
+    {
+      "section_id": "EMB-DAILY",
+      "title": "Daily Checklist",
+      "items": [
+        {
+          "id": "EMB-01",
+          "task_number": "1",
+          "description": "Check LH & RH MLG Tire Inflation Pressures. AMM 32-49-01-600-801-A"
+        },
+        {
+          "id": "EMB-02",
+          "task_number": "2",
+          "description": "Check LH & RH MLG Tires for wear and general condition. AMM 32-49-01-200-801-A"
+        },
+        {
+          "id": "EMB-03",
+          "task_number": "3",
+          "description": "Check NLG Tire Inflation Pressures. AMM 32-49-04-600-801-A"
+        },
+        {
+          "id": "EMB-04",
+          "task_number": "4",
+          "description": "Check NLG Tires for wear and general condition.AMM 32-49-04-200-801-A"
+        },
+        {
+          "id": "EMB-05",
+          "task_number": "5",
+          "description": "Inspect Flight Deck Windshields and clean if required. AMM 56-10-01-200-801-A & 56-10-01-100-801-A"
+        },
+        {
+          "id": "EMB-06",
+          "task_number": "6",
+          "description": "Visually Check Oxygen Cylinder Pressure Relief Disc.AMM 35-11-03-200-801-A"
+        },
+        {
+          "id": "EMB-07",
+          "task_number": "7",
+          "description": "Check Crew oxygen pressure and RECORD QTY in the technical log. Service if below 2500 psi AMM 12-14-00-600-801"
+        },
+        {
+          "id": "EMB-08",
+          "task_number": "8",
+          "description": "Inspect Multi-Function Display For Eng 1 (2) OIL DEBRIS Maintenance Messages. AMM 79-34-00-200-801-A"
+        },
+        {
+          "id": "EMB-09",
+          "task_number": "9",
+          "description": "Visual Check Engine Oil Tank Levels using MFD and replenish if required, record any uplift on sector record page.AMM 12-12-01-600-801-A & RR 12-10-17"
+        },
+        {
+          "id": "EMB-10",
+          "task_number": "10",
+          "description": "Hydraulic System Reservoir Fluid Level Check. AMM 12-13-01-600-801-A(Should Sys 2 level be high refer to SNL145-29-005 for information)"
+        },
+        {
+          "id": "EMB-11",
+          "task_number": "11",
+          "description": "Check Toilet Waste Bin Receptacle Flap For Condition & Correct Operation, Debris Removed, Ashtrays Fitted & Debris Removed. AMM 25-40-01-200-801-A"
+        },
+        {
+          "id": "EMB-12",
+          "task_number": "12",
+          "description": "Check For Correct Compliment Of No Smoking Signs In Toilet Area.IPC 11-32-05"
+        },
+        {
+          "id": "EMB-13",
+          "task_number": "13",
+          "description": "Do a Visual Check of the APU Oil Level Through the Oil Level Sight Glass, Add Lubricrating Oil as required AMM 49-96-00-200-801-A."
+        },
+        {
+          "id": "EMB-14",
+          "task_number": "14",
+          "description": "Visually Check for the Presence of all Emergency Equipment in their Designated Positions IAW the Emergency Equipment Layout"
+        },
+        {
+          "id": "EMB-15",
+          "task_number": "15",
+          "description": "Operate the APU at no load as per TASK 49-10-00-910-802-A"
+        },
+        {
+          "id": "EMB-16",
+          "task_number": "16",
+          "description": "When freezing temperatures are expected, drain potable water into container. AMM 12-15-01-600-802"
+        },
+        {
+          "id": "EMB-17",
+          "task_number": "17",
+          "description": "Install available Air Data blanks at each night stop. Install remaining aircraft blanks as appropriate for the climatic conditions."
+        },
+        {
+          "id": "EMB-18",
+          "task_number": "18",
+          "description": "Carry out aircraft external walk-around to check placards, evidence of structural damage, polyurethane films for the presence of damage or improper installation, fluid leakage indications, all doors, nacelle interiors, access panels, landing gear, engine intakes, pitot probes, static ports, AOA vanes, static dischargers and antennas for integrity, cowlings and filler caps in correct stowed position and free airframe drain holes of any obstructions if present."
         }
       ]
     }

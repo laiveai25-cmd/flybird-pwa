@@ -245,6 +245,7 @@
             <option value="Gulfstream">Gulfstream</option>
             <option value="Hawker">Hawker</option>
             <option value="Challenger">Challenger</option>
+            <option value="Embraer">Embraer</option>
           </select>
         </div>
         <div><label class="fld">Aircraft Registration</label>
@@ -352,7 +353,7 @@ const DEMO_MODE = false;          // true = simulate sending (for the preview/pr
                                  // false = actually POST to the backend below
 const BACKEND_URL = "/api/submit"; // your Vercel function once deployed
 const APP_TOKEN = "6202dribylf"; // MUST exactly match the APP_TOKEN env var in Vercel
-const APP_VERSION = "v24"; // shown in the footer so you can confirm which build is live
+const APP_VERSION = "v25"; // shown in the footer so you can confirm which build is live
 /* ============================================================ */
 
 /* ---------------- Durable storage (IndexedDB + fallback) ---------------- */
@@ -745,10 +746,21 @@ function populateRegDropdown(fleet) {
 if($("#fleet")) $("#fleet").addEventListener("change", async (e) => {
   const f = e.target.value;
   if (currentReg) {
+    let oldFleet = "";
+    for (let series in FLEET_REGS) {
+      if (FLEET_REGS[series].includes(currentReg)) {
+        oldFleet = series;
+        break;
+      }
+    }
+    if (oldFleet) e.target.value = oldFleet;
+    
     const oldKey = activeDraftKey(currentReg);
     const oldPayload = getFormDraftPayload();
     oldPayload.registration = currentReg;
     await Store.saveDraft(oldKey, oldPayload);
+    
+    e.target.value = f;
   }
   populateRegDropdown(f);
   $("#reg").value = "";
